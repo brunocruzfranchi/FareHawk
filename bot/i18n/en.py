@@ -61,7 +61,7 @@ STRINGS = {
         "📊 Status: {status}\n\n"
         "{price_info}"
     ),
-    "latest_price": "💵 Latest price: *{price} {currency}* ({airline}, {stopovers} stop(s), {duration})\n🔗 {link}",
+    "latest_price": "💵 Latest price: *{price} {currency}* ({airline}, {stopovers} stop(s), {duration})\n🔗 [Book]({link})",
     "no_prices_yet": "No price data yet — next check coming soon!",
     "trip_not_found": "❌ Trip not found.",
 

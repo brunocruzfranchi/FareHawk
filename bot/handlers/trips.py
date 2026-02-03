@@ -348,6 +348,24 @@ async def trip_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             )
 
             if latest:
+                # Extract booking link from flight_details JSON
+                import json
+                from urllib.parse import quote
+                booking_link = ""
+                try:
+                    details = json.loads(latest.flight_details) if latest.flight_details else {}
+                    booking_link = details.get("link", "") or details.get("booking_link", "")
+                except (json.JSONDecodeError, TypeError):
+                    pass
+                if not booking_link:
+                    # Generate Google Flights fallback
+                    q = f"Flights from {trip.origin} to {trip.destination}"
+                    if latest.outbound_date:
+                        q += f" on {latest.outbound_date.isoformat()}"
+                    if latest.return_date:
+                        q += f" return {latest.return_date.isoformat()}"
+                    booking_link = f"https://www.google.com/travel/flights?q={quote(q)}"
+
                 price_info = t("latest_price", lang,
                                price=f"{latest.price:.2f}",
                                currency=latest.currency,
@@ -355,7 +373,7 @@ async def trip_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                                stopovers=latest.stopovers,
                                duration=f"{latest.duration_minutes // 60}h {latest.duration_minutes % 60:02d}m"
                                         if latest.duration_minutes else "—",
-                               link="#")
+                               link=booking_link)
             else:
                 price_info = t("no_prices_yet", lang)
 
