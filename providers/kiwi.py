@@ -41,6 +41,9 @@ class KiwiProvider(FlightProvider):
         max_stopovers: Optional[int] = None,
         adults: int = 1,
         limit: int = 5,
+        flight_type: str = "round",
+        return_date_from: Optional[date] = None,
+        return_date_to: Optional[date] = None,
     ) -> list[FlightResult]:
         session = await self._get_session()
 
@@ -53,8 +56,13 @@ class KiwiProvider(FlightProvider):
             "adults": adults,
             "limit": limit,
             "sort": "price",
-            "flight_type": "round",
+            "flight_type": flight_type,
         }
+
+        if flight_type == "round" and return_date_from:
+            params["return_from"] = return_date_from.strftime("%d/%m/%Y")
+        if flight_type == "round" and return_date_to:
+            params["return_to"] = return_date_to.strftime("%d/%m/%Y")
 
         if direct_only:
             params["direct_flights_only"] = True

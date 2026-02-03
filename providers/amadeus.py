@@ -89,6 +89,9 @@ class AmadeusProvider(FlightProvider):
         max_stopovers: Optional[int] = None,
         adults: int = 1,
         limit: int = 5,
+        flight_type: str = "round",
+        return_date_from: Optional[date] = None,
+        return_date_to: Optional[date] = None,
     ) -> list[FlightResult]:
         """Search Amadeus Flight Offers.
 
@@ -113,10 +116,24 @@ class AmadeusProvider(FlightProvider):
             step = total_days / 4
             sample_dates = [date_from + timedelta(days=int(i * step)) for i in range(5)]
 
+        # Determine return date for round trips
+        return_date_sample: Optional[date] = None
+        if flight_type == "round":
+            if return_date_from and return_date_to:
+                ret_days = (return_date_to - return_date_from).days
+                return_date_sample = return_date_from + timedelta(days=ret_days // 2)
+            elif return_date_from:
+                return_date_sample = return_date_from
+
         all_results: list[FlightResult] = []
 
         for dep_date in sample_dates:
             try:
+                # For round trip, calculate a proportional return date if we have a range
+                ret_date = return_date_sample
+                if flight_type == "round" and ret_date is None:
+                    ret_date = dep_date + timedelta(days=14)  # Default 2 weeks
+
                 results = await self._search_date(
                     session, token, origin, destination, dep_date,
                     currency=currency,
@@ -124,6 +141,7 @@ class AmadeusProvider(FlightProvider):
                     max_stopovers=max_stopovers,
                     adults=adults,
                     limit=limit,
+                    return_date=ret_date if flight_type == "round" else None,
                 )
                 all_results.extend(results)
             except Exception:
@@ -147,6 +165,7 @@ class AmadeusProvider(FlightProvider):
         max_stopovers: Optional[int] = None,
         adults: int = 1,
         limit: int = 5,
+        return_date: Optional[date] = None,
     ) -> list[FlightResult]:
         """Search for a specific departure date."""
         params: dict = {
@@ -157,6 +176,9 @@ class AmadeusProvider(FlightProvider):
             "currencyCode": currency,
             "max": min(limit, 10),  # Amadeus max per request
         }
+
+        if return_date:
+            params["returnDate"] = return_date.isoformat()
 
         if direct_only:
             params["nonStop"] = "true"

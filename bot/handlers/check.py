@@ -102,6 +102,9 @@ async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                     direct_only=trip.direct_only,
                     max_stopovers=trip.max_stopovers,
                     limit=3,
+                    flight_type=getattr(trip, 'flight_type', 'round') or 'round',
+                    return_date_from=getattr(trip, 'return_date_from', None),
+                    return_date_to=getattr(trip, 'return_date_to', None),
                 )
 
                 if not results:
@@ -130,16 +133,23 @@ async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 session.flush()
 
                 # Show results
+                flight_type = getattr(trip, 'flight_type', 'round') or 'round'
                 for r in results[:3]:
                     link = r.booking_link or _generate_booking_link_fallback(
                         r.origin, r.destination, r.outbound_date,
                     )
+                    return_str = r.return_date.strftime("%d/%m/%Y") if r.return_date else "—"
+                    outbound_str = r.outbound_date.strftime("%d/%m/%Y") if r.outbound_date else "—"
+                    type_label = "🔄 Round trip" if flight_type == "round" else "➡️ One-way"
+                    dates_display = f"{outbound_str} → {return_str}" if flight_type == "round" else outbound_str
+
                     text = t("check_result", lang,
                              name=trip.name,
                              airline=r.airline,
                              price=f"{r.price:.2f}",
                              currency=r.currency,
-                             outbound_date=r.outbound_date.strftime("%d/%m/%Y") if r.outbound_date else "—",
+                             dates=dates_display,
+                             flight_type=type_label,
                              duration=r.duration_display,
                              stopovers=r.stopovers,
                              link=link)

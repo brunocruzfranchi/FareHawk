@@ -42,6 +42,9 @@ async def run_price_check(bot: Bot, aggregator: FlightAggregator) -> None:
                     direct_only=trip.direct_only,
                     max_stopovers=trip.max_stopovers,
                     limit=5,
+                    flight_type=getattr(trip, 'flight_type', 'round') or 'round',
+                    return_date_from=getattr(trip, 'return_date_from', None),
+                    return_date_to=getattr(trip, 'return_date_to', None),
                 )
 
                 if not results:

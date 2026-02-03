@@ -43,6 +43,9 @@ class FlightAggregator:
         direct_only: bool = False,
         max_stopovers: Optional[int] = None,
         limit: int = 5,
+        flight_type: str = "round",
+        return_date_from: Optional[date] = None,
+        return_date_to: Optional[date] = None,
     ) -> list[FlightResult]:
         """Search all providers concurrently and return merged results sorted by price."""
         tasks = [
@@ -52,6 +55,9 @@ class FlightAggregator:
                 direct_only=direct_only,
                 max_stopovers=max_stopovers,
                 limit=limit,
+                flight_type=flight_type,
+                return_date_from=return_date_from,
+                return_date_to=return_date_to,
             )
             for provider in self._providers
         ]

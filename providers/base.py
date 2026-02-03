@@ -48,6 +48,9 @@ class FlightProvider(ABC):
         max_stopovers: Optional[int] = None,
         adults: int = 1,
         limit: int = 5,
+        flight_type: str = "round",
+        return_date_from: Optional[date] = None,
+        return_date_to: Optional[date] = None,
     ) -> list[FlightResult]:
         """Search for flights and return standardized results."""
         ...

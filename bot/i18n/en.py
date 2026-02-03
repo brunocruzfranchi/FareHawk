@@ -75,12 +75,13 @@ STRINGS = {
     "confirm_delete": "Are you sure you want to delete *{name}*?",
 
     # /search
-    "search_usage": "Usage: `/search JFK BCN 01/07/2025`",
+    "search_usage": "Usage: `/search JFK BCN 01/07/2025 [15/07/2025]`\n\nAdd a return date for round trip searches.",
     "search_searching": "🔍 Searching flights {origin} → {destination} on {date}…",
     "search_no_results": "😕 No flights found for that route/date.",
     "search_result": (
         "✈️ *{airline}* — *{price} {currency}*\n"
-        "📅 {outbound_date}\n"
+        "{flight_type}\n"
+        "📅 {dates}\n"
         "⏱ {duration} | {stopovers} stop(s)\n"
         "🔗 [Book]({link})"
     ),
@@ -138,7 +139,8 @@ STRINGS = {
     "check_result": (
         "💰 *{name}*\n\n"
         "✈️ {airline} — *{price} {currency}*\n"
-        "📅 {outbound_date}\n"
+        "{flight_type}\n"
+        "📅 {dates}\n"
         "⏱ {duration} | {stopovers} stop(s)\n"
         "🔗 [Book]({link})"
     ),

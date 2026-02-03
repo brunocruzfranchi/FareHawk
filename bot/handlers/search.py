@@ -35,6 +35,7 @@ async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     origin = args[0].upper()
     dest = args[1].upper()
     date_str = args[2]
+    return_date_str = args[3] if len(args) > 3 else None
 
     try:
         search_date = datetime.strptime(date_str, "%d/%m/%Y").date()
@@ -42,8 +43,18 @@ async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await update.message.reply_text(t("search_usage", lang), parse_mode="Markdown")
         return
 
+    return_date = None
+    flight_type = "oneway"
+    if return_date_str:
+        try:
+            return_date = datetime.strptime(return_date_str, "%d/%m/%Y").date()
+            flight_type = "round"
+        except ValueError:
+            pass
+
+    search_label = f"{date_str} → {return_date_str}" if return_date_str else date_str
     await update.message.reply_text(
-        t("search_searching", lang, origin=origin, destination=dest, date=date_str),
+        t("search_searching", lang, origin=origin, destination=dest, date=search_label),
         parse_mode="Markdown",
     )
 
@@ -59,6 +70,9 @@ async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             date_to=search_date,
             currency=currency,
             limit=5,
+            flight_type=flight_type,
+            return_date_from=return_date,
+            return_date_to=return_date,
         )
     except Exception:
         logger.exception("Search failed for %s→%s", origin, dest)
@@ -70,11 +84,17 @@ async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
 
     for r in results[:5]:
+        outbound_str = r.outbound_date.strftime("%d/%m/%Y") if r.outbound_date else "—"
+        return_str = r.return_date.strftime("%d/%m/%Y") if r.return_date else None
+        dates_display = f"{outbound_str} → {return_str}" if return_str else outbound_str
+        type_label = "🔄 Round trip" if flight_type == "round" else "➡️ One-way"
+
         text = t("search_result", lang,
                  airline=r.airline,
                  price=f"{r.price:.2f}",
                  currency=r.currency,
-                 outbound_date=r.outbound_date.strftime("%d/%m/%Y") if r.outbound_date else "—",
+                 dates=dates_display,
+                 flight_type=type_label,
                  duration=r.duration_display,
                  stopovers=r.stopovers,
                  link=r.booking_link or "#")
