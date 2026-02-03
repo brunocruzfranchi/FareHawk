@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  farehawk:
+    build: .
+    container_name: farehawk-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      - farehawk-data:/app/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  farehawk-data:
