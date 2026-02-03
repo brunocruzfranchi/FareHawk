@@ -14,6 +14,8 @@ STRINGS = {
         "/newtrip — Crear un nuevo viaje para seguir\n"
         "/trips — Listar tus viajes activos\n"
         "/search `<origen> <destino> <DD/MM/AAAA>` — Búsqueda rápida\n"
+        "/check — Forzar verificación de precios\n"
+        "/edit — Editar un viaje existente\n"
         "/settings — Cambiar idioma o moneda\n"
         "/help — Mostrar esta ayuda"
     ),
@@ -37,6 +39,8 @@ STRINGS = {
         "📝 Nombre: *{name}*\n"
         "📍 De: `{origin}` → `{destination}`\n"
         "📅 Fechas: {date_from} — {date_to} (±{flex_days} días)\n"
+        "✈️ Tipo: {flight_type}\n"
+        "{return_dates}"
         "💰 Precio máximo: {max_price}\n"
         "✈️ Solo directo: {direct_only}\n\n"
         "¿Guardar este viaje?"
@@ -111,6 +115,70 @@ STRINGS = {
         "📅 {outbound} → {return_date}\n"
         "🔗 [Reservar ahora]({link})"
     ),
+
+    # Flight type
+    "flight_type_ask": "✈️ ¿Ida y vuelta o solo ida?",
+    "flight_type_round": "🔄 Ida y vuelta",
+    "flight_type_oneway": "➡️ Solo ida",
+    "return_dates_ask": (
+        "📅 ¿Cuál es tu rango de fechas de *regreso*?\n\n"
+        "Envía dos fechas separadas por un espacio:\n"
+        "`DD/MM/AAAA DD/MM/AAAA`\n\n"
+        "Ejemplo: `15/07/2025 25/07/2025`"
+    ),
+    "return_dates_invalid": "❌ Fechas de regreso inválidas. Usa el formato `DD/MM/AAAA DD/MM/AAAA`.",
+    "flight_type_label_round": "🔄 Ida y vuelta",
+    "flight_type_label_oneway": "➡️ Solo ida",
+
+    # /check
+    "check_header": "🔍 *Verificación de Precios*\n",
+    "check_no_trips": "No hay viajes activos para verificar. ¡Usa /newtrip para crear uno!",
+    "check_searching": "🔍 Verificando precios para *{name}* ({origin} → {destination})…",
+    "check_no_results": "😕 No se encontraron resultados para *{name}*.",
+    "check_result": (
+        "💰 *{name}*\n\n"
+        "✈️ {airline} — *{price} {currency}*\n"
+        "📅 {outbound_date}\n"
+        "⏱ {duration} | {stopovers} escala(s)\n"
+        "🔗 [Reservar]({link})"
+    ),
+    "check_complete": "✅ ¡Verificación de precios completa!",
+    "check_trip_not_found": "❌ Viaje #{trip_id} no encontrado o no es tuyo.",
+
+    # /edit
+    "edit_select_trip": "📝 *Editar un Viaje*\n\nSelecciona un viaje para editar:",
+    "edit_no_trips": "No hay viajes para editar. ¡Usa /newtrip para crear uno!",
+    "edit_select_field": "¿Qué quieres editar de *{name}*?",
+    "edit_field_name": "📝 Nombre",
+    "edit_field_origin": "📍 Origen",
+    "edit_field_destination": "🎯 Destino",
+    "edit_field_dates": "📅 Fechas",
+    "edit_field_flex": "🔄 Días de flexibilidad",
+    "edit_field_max_price": "💰 Precio máximo",
+    "edit_field_direct": "✈️ Solo directo",
+    "edit_field_flight_type": "🔄 Tipo de vuelo",
+    "edit_send_value": "Envía el nuevo valor para *{field}*:",
+    "edit_send_dates": "Envía las nuevas fechas (DD/MM/AAAA DD/MM/AAAA):",
+    "edit_saved": "✅ *{field}* actualizado a: {value}",
+    "edit_invalid": "❌ Valor inválido. Por favor intenta de nuevo.",
+    "edit_cancelled": "❌ Edición cancelada.",
+
+    # Weekly digest
+    "digest_header": "📊 *Resumen Semanal de Vuelos*\n\n",
+    "digest_trip": (
+        "🦅 *{name}* ({origin} → {destination})\n"
+        "   💰 Mejor precio: *{price} {currency}*\n"
+        "   {trend} Cambio: {change}\n\n"
+    ),
+    "digest_no_data": (
+        "🦅 *{name}* ({origin} → {destination})\n"
+        "   Sin datos de precio aún\n\n"
+    ),
+    "digest_footer": "¡Que tengas una gran semana! ✈️",
+    "digest_no_trips": "No hay viajes activos para reportar.",
+    "trend_up": "📈",
+    "trend_down": "📉",
+    "trend_stable": "➡️",
 
     # Misc
     "yes": "Sí",

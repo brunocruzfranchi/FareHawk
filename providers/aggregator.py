@@ -8,6 +8,7 @@ from typing import Optional
 from providers.base import FlightProvider, FlightResult
 from providers.kiwi import KiwiProvider
 from providers.amadeus import AmadeusProvider
+from providers.serpapi import SerpAPIProvider
 from core.config import config
 
 logger = logging.getLogger(__name__)
@@ -21,9 +22,12 @@ class FlightAggregator:
         # Always add Kiwi if key is available
         if config.kiwi_api_key:
             self._providers.append(KiwiProvider())
-        # Amadeus — Phase 2
+        # Amadeus
         if config.amadeus_api_key:
             self._providers.append(AmadeusProvider())
+        # SerpAPI Google Flights
+        if config.serpapi_key:
+            self._providers.append(SerpAPIProvider())
 
         if not self._providers:
             logger.warning("No flight providers configured — set KIWI_API_KEY in .env")

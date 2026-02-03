@@ -80,6 +80,55 @@ def settings_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
     ])
 
 
+# ── Flight type ───────────────────────────────────────────────────────
+
+def flight_type_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(t("flight_type_round", lang), callback_data="ftype:round"),
+            InlineKeyboardButton(t("flight_type_oneway", lang), callback_data="ftype:oneway"),
+        ]
+    ])
+
+
+# ── Edit trip ─────────────────────────────────────────────────────────
+
+def edit_trip_list_keyboard(trips: list, lang: str = "en") -> InlineKeyboardMarkup:
+    """One button per trip for editing."""
+    buttons = []
+    for trip in trips:
+        status = "✅" if trip.active else "⏸"
+        buttons.append([
+            InlineKeyboardButton(
+                f"{status} {trip.name} ({trip.origin}→{trip.destination})",
+                callback_data=f"edtrip:{trip.id}",
+            )
+        ])
+    return InlineKeyboardMarkup(buttons)
+
+
+def edit_field_keyboard(trip_id: int, lang: str = "en") -> InlineKeyboardMarkup:
+    """Buttons for each editable field."""
+    fields = [
+        ("name", t("edit_field_name", lang)),
+        ("origin", t("edit_field_origin", lang)),
+        ("destination", t("edit_field_destination", lang)),
+        ("dates", t("edit_field_dates", lang)),
+        ("flex", t("edit_field_flex", lang)),
+        ("max_price", t("edit_field_max_price", lang)),
+        ("direct", t("edit_field_direct", lang)),
+        ("flight_type", t("edit_field_flight_type", lang)),
+    ]
+    buttons = []
+    for field_key, label in fields:
+        buttons.append([
+            InlineKeyboardButton(label, callback_data=f"editfield:{trip_id}:{field_key}")
+        ])
+    return InlineKeyboardMarkup(buttons)
+
+
+# ── Currency ──────────────────────────────────────────────────────────
+
 def currency_keyboard() -> InlineKeyboardMarkup:
     currencies = ["USD", "EUR", "GBP", "CAD", "AUD", "MXN", "COP", "BRL"]
     rows = []

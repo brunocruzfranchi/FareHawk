@@ -12,6 +12,7 @@ from datetime import date, datetime, timedelta
 from typing import Optional
 
 import aiohttp
+from urllib.parse import quote
 
 from core.config import config
 from providers.base import FlightProvider, FlightResult
@@ -270,6 +271,11 @@ class AmadeusProvider(FlightProvider):
                 # Check max_stopovers filter
                 # (Amadeus nonStop param handles direct, but for multi-stop filtering)
 
+                # Build fallback booking link (Google Flights)
+                booking_link = self._build_booking_link_fallback(
+                    origin, destination, outbound_date, return_date,
+                )
+
                 results.append(FlightResult(
                     price=price,
                     currency=currency,
@@ -281,7 +287,7 @@ class AmadeusProvider(FlightProvider):
                     stopovers=stopovers,
                     duration_minutes=duration_minutes,
                     source=self.name,
-                    booking_link="",  # Amadeus doesn't provide booking links in search
+                    booking_link=booking_link,
                     flight_details={
                         "offer_id": offer.get("id"),
                         "validating_airline": offer.get("validatingAirlineCodes", []),
@@ -321,6 +327,18 @@ class AmadeusProvider(FlightProvider):
                 pass
 
         return total
+
+    @staticmethod
+    def _build_booking_link_fallback(
+        origin: str, destination: str, outbound_date=None, return_date=None,
+    ) -> str:
+        """Build a Google Flights fallback URL."""
+        q = f"Flights from {origin} to {destination}"
+        if outbound_date:
+            q += f" on {outbound_date.isoformat()}"
+        if return_date:
+            q += f" return {return_date.isoformat()}"
+        return f"https://www.google.com/travel/flights?q={quote(q)}"
 
     @staticmethod
     def _extract_cabin(offer: dict) -> str:

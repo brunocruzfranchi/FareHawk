@@ -38,6 +38,9 @@ class Trip(Base):
     date_to = Column(Date, nullable=False)
     flex_days = Column(Integer, nullable=False, default=3)
     max_price = Column(Float, nullable=True)
+    flight_type = Column(String(10), nullable=False, default="round")  # "round" or "oneway"
+    return_date_from = Column(Date, nullable=True)
+    return_date_to = Column(Date, nullable=True)
     direct_only = Column(Boolean, nullable=False, default=False)
     max_stopovers = Column(Integer, nullable=True)
     check_interval_hours = Column(Integer, nullable=False, default=3)

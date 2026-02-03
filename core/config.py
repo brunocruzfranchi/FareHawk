@@ -26,6 +26,9 @@ class Config:
     amadeus_api_secret: str = field(
         default_factory=lambda: os.getenv("AMADEUS_API_SECRET", "")
     )
+    serpapi_key: str = field(
+        default_factory=lambda: os.getenv("SERPAPI_KEY", "")
+    )
 
     # Database
     database_url: str = field(
@@ -47,10 +50,10 @@ class Config:
         """Raise if critical config is missing."""
         if not self.telegram_bot_token:
             raise ValueError("TELEGRAM_BOT_TOKEN is required")
-        if not self.kiwi_api_key and not self.amadeus_api_key:
+        if not self.kiwi_api_key and not self.amadeus_api_key and not self.serpapi_key:
             raise ValueError(
                 "At least one flight provider is required. "
-                "Set KIWI_API_KEY or AMADEUS_API_KEY/AMADEUS_API_SECRET in .env"
+                "Set KIWI_API_KEY, AMADEUS_API_KEY/AMADEUS_API_SECRET, or SERPAPI_KEY in .env"
             )
 
 

@@ -3,6 +3,7 @@
 import json
 import logging
 from datetime import datetime
+from urllib.parse import quote
 
 from sqlalchemy.orm import Session
 
@@ -43,13 +44,21 @@ def evaluate_alerts(
     )
     historical_min = min_price_row[0] if min_price_row else None
 
+    # Build fallback booking link if none provided
+    booking_link = best.booking_link
+    if not booking_link:
+        q = f"Flights from {best.origin} to {best.destination}"
+        if best.outbound_date:
+            q += f" on {best.outbound_date.isoformat()}"
+        booking_link = f"https://www.google.com/travel/flights?q={quote(q)}"
+
     details = json.dumps({
         "airline": best.airline,
         "stopovers": best.stopovers,
         "duration": best.duration_display,
         "outbound": str(best.outbound_date),
         "return_date": str(best.return_date) if best.return_date else None,
-        "link": best.booking_link,
+        "link": booking_link,
     })
 
     # 1) Price drop > threshold %

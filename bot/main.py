@@ -12,8 +12,9 @@ from core.database import init_db
 from core.scheduler import start_scheduler, stop_scheduler
 from providers.aggregator import FlightAggregator
 from services.price_checker import run_price_check
+from services.digest import send_weekly_digest
 
-from bot.handlers import start, trips, search, settings
+from bot.handlers import start, trips, search, settings, check
 
 # ── Logging ───────────────────────────────────────────────────────────
 
@@ -39,23 +40,29 @@ def main() -> None:
     # Create shared aggregator
     aggregator = FlightAggregator()
 
-    # Inject aggregator into search handler
+    # Inject aggregator into search and check handlers
     search.set_aggregator(aggregator)
+    check.set_aggregator(aggregator)
 
     # Register all handlers
     start.register(app)
     trips.register(app)
     search.register(app)
     settings.register(app)
+    check.register(app)
 
-    # Schedule price checks
+    # Schedule price checks and weekly digest
     async def price_check_job() -> None:
         """Wrapper invoked by APScheduler."""
         await run_price_check(app.bot, aggregator)
 
+    async def digest_job() -> None:
+        """Wrapper invoked by APScheduler for weekly digest."""
+        await send_weekly_digest(app.bot)
+
     # Post-init hook: start scheduler after bot is ready
     async def post_init(application: Application) -> None:
-        start_scheduler(price_check_job)
+        start_scheduler(price_check_job, digest_callback=digest_job)
         logger.info("🦅 FareHawk is online!")
 
     async def post_shutdown(application: Application) -> None:

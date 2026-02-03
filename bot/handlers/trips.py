@@ -1,4 +1,4 @@
-"""Handlers for trip CRUD: /newtrip wizard, /trips, /trip, pause, resume, delete."""
+"""Handlers for trip CRUD: /newtrip wizard, /trips, /trip, /edit, pause, resume, delete."""
 
 import logging
 from datetime import datetime
@@ -20,6 +20,8 @@ from bot.keyboards.inline import (
     trip_list_keyboard,
     trip_actions_keyboard,
     confirm_delete_keyboard,
+    flight_type_keyboard,
+    edit_field_keyboard,
 )
 from core.database import get_or_create_user, get_session
 from core.models import User, Trip, PriceSnapshot
@@ -27,8 +29,11 @@ from services.charts import generate_price_chart
 
 logger = logging.getLogger(__name__)
 
-# Conversation states
-NAME, ORIGIN, DEST, DATES, FLEX, PRICE, DIRECT, CONFIRM = range(8)
+# Conversation states for /newtrip
+NAME, ORIGIN, DEST, DATES, FLIGHT_TYPE, RETURN_DATES, FLEX, PRICE, DIRECT, CONFIRM = range(10)
+
+# Conversation states for /edit
+EDIT_SELECT_TRIP, EDIT_SELECT_FIELD, EDIT_VALUE = range(100, 103)
 
 
 def _get_lang(user_id: int) -> str:
@@ -89,6 +94,52 @@ async def trip_dates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     context.user_data["trip"]["date_from"] = date_from
     context.user_data["trip"]["date_to"] = date_to
+
+    # Ask flight type
+    await update.message.reply_text(
+        t("flight_type_ask", lang),
+        parse_mode="Markdown",
+        reply_markup=flight_type_keyboard(lang),
+    )
+    return FLIGHT_TYPE
+
+
+async def trip_flight_type_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    lang = _get_lang(query.from_user.id)
+
+    flight_type = "round" if query.data == "ftype:round" else "oneway"
+    context.user_data["trip"]["flight_type"] = flight_type
+
+    if flight_type == "round":
+        await query.edit_message_text(t("return_dates_ask", lang), parse_mode="Markdown")
+        return RETURN_DATES
+    else:
+        context.user_data["trip"]["return_date_from"] = None
+        context.user_data["trip"]["return_date_to"] = None
+        await query.edit_message_text(t("trip_flex_ask", lang), parse_mode="Markdown")
+        return FLEX
+
+
+async def trip_return_dates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = _get_lang(update.effective_user.id)
+    text = update.message.text.strip()
+    parts = text.split()
+
+    if len(parts) != 2:
+        await update.message.reply_text(t("return_dates_invalid", lang), parse_mode="Markdown")
+        return RETURN_DATES
+
+    try:
+        rdf = datetime.strptime(parts[0], "%d/%m/%Y").date()
+        rdt = datetime.strptime(parts[1], "%d/%m/%Y").date()
+    except ValueError:
+        await update.message.reply_text(t("return_dates_invalid", lang), parse_mode="Markdown")
+        return RETURN_DATES
+
+    context.user_data["trip"]["return_date_from"] = rdf
+    context.user_data["trip"]["return_date_to"] = rdt
     await update.message.reply_text(t("trip_flex_ask", lang), parse_mode="Markdown")
     return FLEX
 
@@ -144,6 +195,13 @@ async def trip_direct_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     max_price_str = f"{td['max_price']:.2f} {currency}" if td["max_price"] else "—"
     direct_str = t("yes", lang) if td["direct_only"] else t("no", lang)
 
+    flight_type = td.get("flight_type", "round")
+    flight_type_str = t("flight_type_label_round", lang) if flight_type == "round" else t("flight_type_label_oneway", lang)
+
+    return_dates_str = ""
+    if flight_type == "round" and td.get("return_date_from") and td.get("return_date_to"):
+        return_dates_str = f"📅 Return: {td['return_date_from'].strftime('%d/%m/%Y')} — {td['return_date_to'].strftime('%d/%m/%Y')}\n"
+
     await query.edit_message_text(
         t("trip_confirm", lang,
           name=td["name"],
@@ -153,7 +211,9 @@ async def trip_direct_callback(update: Update, context: ContextTypes.DEFAULT_TYP
           date_to=td["date_to"].strftime("%d/%m/%Y"),
           flex_days=td["flex_days"],
           max_price=max_price_str,
-          direct_only=direct_str),
+          direct_only=direct_str,
+          flight_type=flight_type_str,
+          return_dates=return_dates_str),
         parse_mode="Markdown",
         reply_markup=confirm_cancel_keyboard(lang),
     )
@@ -184,6 +244,9 @@ async def trip_confirm_callback(update: Update, context: ContextTypes.DEFAULT_TY
             flex_days=td.get("flex_days", 3),
             max_price=td.get("max_price"),
             direct_only=td.get("direct_only", False),
+            flight_type=td.get("flight_type", "round"),
+            return_date_from=td.get("return_date_from"),
+            return_date_to=td.get("return_date_to"),
         )
         session.add(trip)
 
@@ -197,6 +260,7 @@ async def trip_confirm_callback(update: Update, context: ContextTypes.DEFAULT_TY
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     lang = _get_lang(update.effective_user.id)
     context.user_data.pop("trip", None)
+    context.user_data.pop("edit", None)
     await update.message.reply_text(t("trip_cancelled", lang), parse_mode="Markdown")
     return ConversationHandler.END
 
@@ -266,6 +330,15 @@ async def trip_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             max_price_str = f"{trip.max_price:.2f} {currency}" if trip.max_price else "—"
             direct_str = t("yes", lang) if trip.direct_only else t("no", lang)
 
+            # Flight type info
+            flight_type = getattr(trip, "flight_type", "round") or "round"
+            flight_type_str = t("flight_type_label_round", lang) if flight_type == "round" else t("flight_type_label_oneway", lang)
+            return_dates_str = ""
+            rdf = getattr(trip, "return_date_from", None)
+            rdt = getattr(trip, "return_date_to", None)
+            if flight_type == "round" and rdf and rdt:
+                return_dates_str = f"\n📅 Return: {rdf.strftime('%d/%m/%Y')} — {rdt.strftime('%d/%m/%Y')}"
+
             text = t("trip_detail", lang,
                      name=trip.name,
                      origin=trip.origin,
@@ -278,6 +351,9 @@ async def trip_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                      interval=trip.check_interval_hours,
                      status=status,
                      price_info=price_info)
+
+            # Append flight type and return dates
+            text += f"\n✈️ Type: {flight_type_str}{return_dates_str}"
 
             # Try to send chart
             chart = generate_price_chart(session, trip.id, currency)
@@ -323,6 +399,231 @@ async def trip_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             )
 
 
+# ── /edit Command ────────────────────────────────────────────────────
+
+async def edit_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle /edit — show list of trips to edit."""
+    user = get_or_create_user(update.effective_user.id, update.effective_user.username)
+    lang = user.language
+
+    with get_session() as session:
+        trips = session.query(Trip).filter(Trip.user_id == user.id).all()
+        if not trips:
+            await update.message.reply_text(t("edit_no_trips", lang), parse_mode="Markdown")
+            return ConversationHandler.END
+        session.expunge_all()
+
+    from bot.keyboards.inline import edit_trip_list_keyboard
+    await update.message.reply_text(
+        t("edit_select_trip", lang),
+        parse_mode="Markdown",
+        reply_markup=edit_trip_list_keyboard(trips, lang),
+    )
+    return EDIT_SELECT_TRIP
+
+
+async def edit_select_trip_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """User selected a trip to edit."""
+    query = update.callback_query
+    await query.answer()
+    lang = _get_lang(query.from_user.id)
+
+    trip_id = int(query.data.split(":")[1])
+    context.user_data["edit"] = {"trip_id": trip_id}
+
+    with get_session() as session:
+        trip = session.query(Trip).filter(Trip.id == trip_id).first()
+        if not trip:
+            await query.edit_message_text(t("trip_not_found", lang), parse_mode="Markdown")
+            return ConversationHandler.END
+        trip_name = trip.name
+
+    await query.edit_message_text(
+        t("edit_select_field", lang, name=trip_name),
+        parse_mode="Markdown",
+        reply_markup=edit_field_keyboard(trip_id, lang),
+    )
+    return EDIT_SELECT_FIELD
+
+
+async def edit_select_field_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """User selected a field to edit."""
+    query = update.callback_query
+    await query.answer()
+    lang = _get_lang(query.from_user.id)
+
+    # editfield:<trip_id>:<field>
+    parts = query.data.split(":")
+    trip_id = int(parts[1])
+    field = parts[2]
+
+    context.user_data["edit"] = {"trip_id": trip_id, "field": field}
+
+    # For direct_only and flight_type, show inline keyboard instead of text input
+    if field == "direct":
+        await query.edit_message_text(
+            t("trip_direct_ask", lang),
+            parse_mode="Markdown",
+            reply_markup=yes_no_keyboard(lang),
+        )
+        return EDIT_VALUE
+    elif field == "flight_type":
+        await query.edit_message_text(
+            t("flight_type_ask", lang),
+            parse_mode="Markdown",
+            reply_markup=flight_type_keyboard(lang),
+        )
+        return EDIT_VALUE
+    elif field == "dates":
+        await query.edit_message_text(
+            t("edit_send_dates", lang),
+            parse_mode="Markdown",
+        )
+        return EDIT_VALUE
+    else:
+        field_label = t(f"edit_field_{field}", lang)
+        await query.edit_message_text(
+            t("edit_send_value", lang, field=field_label),
+            parse_mode="Markdown",
+        )
+        return EDIT_VALUE
+
+
+async def edit_value_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle text input for edit value."""
+    lang = _get_lang(update.effective_user.id)
+    edit_data = context.user_data.get("edit", {})
+    trip_id = edit_data.get("trip_id")
+    field = edit_data.get("field")
+
+    if not trip_id or not field:
+        await update.message.reply_text(t("edit_cancelled", lang), parse_mode="Markdown")
+        return ConversationHandler.END
+
+    text = update.message.text.strip()
+    value = None
+    display_value = text
+
+    try:
+        if field == "name":
+            value = text
+        elif field == "origin":
+            value = text.upper()
+            display_value = value
+        elif field == "destination":
+            value = text.upper()
+            display_value = value
+        elif field == "dates":
+            parts = text.split()
+            if len(parts) != 2:
+                raise ValueError("Need two dates")
+            df = datetime.strptime(parts[0], "%d/%m/%Y").date()
+            dt = datetime.strptime(parts[1], "%d/%m/%Y").date()
+            # Will set both below
+            with get_session() as session:
+                trip = session.query(Trip).filter(Trip.id == trip_id).first()
+                if trip:
+                    trip.date_from = df
+                    trip.date_to = dt
+            field_label = t("edit_field_dates", lang)
+            await update.message.reply_text(
+                t("edit_saved", lang, field=field_label, value=f"{parts[0]} — {parts[1]}"),
+                parse_mode="Markdown",
+            )
+            context.user_data.pop("edit", None)
+            return ConversationHandler.END
+        elif field == "flex":
+            value = int(text)
+            display_value = str(value)
+        elif field == "max_price":
+            if text.lower() in ("none", "0", "-", "/skip"):
+                value = None
+                display_value = "—"
+            else:
+                value = float(text)
+                display_value = f"{value:.2f}"
+        else:
+            await update.message.reply_text(t("edit_invalid", lang), parse_mode="Markdown")
+            return ConversationHandler.END
+    except (ValueError, TypeError):
+        await update.message.reply_text(t("edit_invalid", lang), parse_mode="Markdown")
+        return EDIT_VALUE
+
+    # Apply the edit
+    field_map = {
+        "name": "name",
+        "origin": "origin",
+        "destination": "destination",
+        "flex": "flex_days",
+        "max_price": "max_price",
+    }
+
+    db_field = field_map.get(field)
+    if db_field:
+        with get_session() as session:
+            trip = session.query(Trip).filter(Trip.id == trip_id).first()
+            if trip:
+                setattr(trip, db_field, value)
+
+    field_label = t(f"edit_field_{field}", lang)
+    await update.message.reply_text(
+        t("edit_saved", lang, field=field_label, value=display_value),
+        parse_mode="Markdown",
+    )
+    context.user_data.pop("edit", None)
+    return ConversationHandler.END
+
+
+async def edit_value_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle callback for direct_only and flight_type edits."""
+    query = update.callback_query
+    await query.answer()
+    lang = _get_lang(query.from_user.id)
+    edit_data = context.user_data.get("edit", {})
+    trip_id = edit_data.get("trip_id")
+    field = edit_data.get("field")
+
+    if not trip_id or not field:
+        await query.edit_message_text(t("edit_cancelled", lang), parse_mode="Markdown")
+        return ConversationHandler.END
+
+    if field == "direct":
+        value = query.data == "yn:yes"
+        display_value = t("yes", lang) if value else t("no", lang)
+        with get_session() as session:
+            trip = session.query(Trip).filter(Trip.id == trip_id).first()
+            if trip:
+                trip.direct_only = value
+
+    elif field == "flight_type":
+        value = "round" if query.data == "ftype:round" else "oneway"
+        display_value = t(f"flight_type_label_{value}", lang)
+        with get_session() as session:
+            trip = session.query(Trip).filter(Trip.id == trip_id).first()
+            if trip:
+                trip.flight_type = value
+
+    else:
+        await query.edit_message_text(t("edit_cancelled", lang), parse_mode="Markdown")
+        context.user_data.pop("edit", None)
+        return ConversationHandler.END
+
+    field_label = t(f"edit_field_{field}", lang)
+    await query.edit_message_text(
+        t("edit_saved", lang, field=field_label, value=display_value),
+        parse_mode="Markdown",
+    )
+    context.user_data.pop("edit", None)
+    return ConversationHandler.END
+
+
+async def edit_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = _get_lang(update.effective_user.id)
+    context.user_data.pop("edit", None)
+    await update.message.reply_text(t("edit_cancelled", lang), parse_mode="Markdown")
+    return ConversationHandler.END
+
+
 # ── Registration ─────────────────────────────────────────────────────
 
 def register(app) -> None:
@@ -335,6 +636,8 @@ def register(app) -> None:
             ORIGIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, trip_origin)],
             DEST: [MessageHandler(filters.TEXT & ~filters.COMMAND, trip_dest)],
             DATES: [MessageHandler(filters.TEXT & ~filters.COMMAND, trip_dates)],
+            FLIGHT_TYPE: [CallbackQueryHandler(trip_flight_type_callback, pattern=r"^ftype:")],
+            RETURN_DATES: [MessageHandler(filters.TEXT & ~filters.COMMAND, trip_return_dates)],
             FLEX: [MessageHandler(filters.TEXT, trip_flex)],
             PRICE: [MessageHandler(filters.TEXT, trip_price)],
             DIRECT: [CallbackQueryHandler(trip_direct_callback, pattern=r"^yn:")],
@@ -343,5 +646,21 @@ def register(app) -> None:
         fallbacks=[CommandHandler("cancel", cancel_command)],
     )
     app.add_handler(conv)
+
+    # Conversation for /edit
+    edit_conv = ConversationHandler(
+        entry_points=[CommandHandler("edit", edit_start)],
+        states={
+            EDIT_SELECT_TRIP: [CallbackQueryHandler(edit_select_trip_callback, pattern=r"^edtrip:")],
+            EDIT_SELECT_FIELD: [CallbackQueryHandler(edit_select_field_callback, pattern=r"^editfield:")],
+            EDIT_VALUE: [
+                CallbackQueryHandler(edit_value_callback, pattern=r"^(yn:|ftype:)"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, edit_value_text),
+            ],
+        },
+        fallbacks=[CommandHandler("cancel", edit_cancel)],
+    )
+    app.add_handler(edit_conv)
+
     app.add_handler(CommandHandler("trips", trips_command))
     app.add_handler(CallbackQueryHandler(trip_callback, pattern=r"^trip:"))
