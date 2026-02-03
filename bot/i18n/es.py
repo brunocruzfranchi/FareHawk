@@ -24,21 +24,17 @@ STRINGS = {
     "trip_name_ask": "✏️ ¡Vamos a crear un nuevo viaje!\n\n¿Cómo quieres llamarlo? (ej. *Verano en Barcelona*)",
     "trip_origin_ask": "📍 ¿Desde dónde vuelas? (código IATA o ciudad, ej. `MAD` o `Madrid`)",
     "trip_dest_ask": "🎯 ¿A dónde vuelas? (código IATA o ciudad, ej. `BCN` o `Barcelona`)",
-    "trip_dates_ask": (
-        "📅 ¿Cuál es tu rango de fechas de viaje?\n\n"
-        "Envía dos fechas separadas por un espacio:\n"
-        "`DD/MM/AAAA DD/MM/AAAA`\n\n"
-        "Ejemplo: `01/07/2025 15/07/2025`"
-    ),
-    "trip_dates_invalid": "❌ Fechas inválidas. Usa el formato `DD/MM/AAAA DD/MM/AAAA`.",
-    "trip_flex_ask": "🔄 ¿Cuántos días de flexibilidad (±)? (por defecto: 3)\n\nEnvía un número o /skip para usar el valor por defecto.",
+    "trip_departure_date_ask": "📅 ¿Cuál es tu fecha de *salida*?\n\nEnvía una fecha: `DD/MM/AAAA`\n\nEjemplo: `17/10/2026`",
+    "trip_return_date_ask": "📅 ¿Cuál es tu fecha de *regreso*?\n\nEnvía una fecha: `DD/MM/AAAA`\n\nEjemplo: `01/11/2026`",
+    "trip_date_invalid": "❌ Fecha inválida. Usa el formato `DD/MM/AAAA`.",
+    "trip_flex_ask": "🔄 ¿Cuántos *días de flexibilidad* (±)? Se aplica a la fecha de ida y vuelta. (por defecto: 3)\n\nEnvía un número o /skip para usar el valor por defecto.",
     "trip_price_ask": "💰 ¿Establecer un presupuesto máximo en *{currency}*?\n\nEnvía un número o /skip para omitir.",
     "trip_direct_ask": "✈️ ¿Solo vuelos directos?",
     "trip_confirm": (
         "✅ *Resumen del viaje*\n\n"
         "📝 Nombre: *{name}*\n"
         "📍 De: `{origin}` → `{destination}`\n"
-        "📅 Fechas: {date_from} — {date_to} (±{flex_days} días)\n"
+        "📅 Salida: {departure_date} (±{flex_days}d)\n"
         "✈️ Tipo: {flight_type}\n"
         "{return_dates}"
         "💰 Precio máximo: {max_price}\n"
@@ -57,7 +53,8 @@ STRINGS = {
     "trip_detail": (
         "📋 *{name}*\n\n"
         "📍 {origin} → {destination}\n"
-        "📅 {date_from} — {date_to} (±{flex_days}d)\n"
+        "📅 Salida: {departure_date} (±{flex_days}d)\n"
+        "{return_info}"
         "💰 Presupuesto: {max_price}\n"
         "✈️ Solo directo: {direct_only}\n"
         "🔄 Verificar cada {interval}h\n"
@@ -121,13 +118,8 @@ STRINGS = {
     "flight_type_ask": "✈️ ¿Ida y vuelta o solo ida?",
     "flight_type_round": "🔄 Ida y vuelta",
     "flight_type_oneway": "➡️ Solo ida",
-    "return_dates_ask": (
-        "📅 ¿Cuál es tu rango de fechas de *regreso*?\n\n"
-        "Envía dos fechas separadas por un espacio:\n"
-        "`DD/MM/AAAA DD/MM/AAAA`\n\n"
-        "Ejemplo: `15/07/2025 25/07/2025`"
-    ),
-    "return_dates_invalid": "❌ Fechas de regreso inválidas. Usa el formato `DD/MM/AAAA DD/MM/AAAA`.",
+    "return_dates_ask": "📅 ¿Cuál es tu fecha de *regreso*?\n\nEnvía una fecha: `DD/MM/AAAA`",
+    "return_dates_invalid": "❌ Fecha de regreso inválida. Usa el formato `DD/MM/AAAA`.",
     "flight_type_label_round": "🔄 Ida y vuelta",
     "flight_type_label_oneway": "➡️ Solo ida",
 

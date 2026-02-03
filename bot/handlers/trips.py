@@ -104,30 +104,6 @@ async def trip_origin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 async def trip_dest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     lang = _get_lang(update.effective_user.id)
     context.user_data["trip"]["destination"] = update.message.text.strip().upper()
-    await update.message.reply_text(t("trip_dates_ask", lang), parse_mode="Markdown")
-    return DATES
-
-
-async def trip_dates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    lang = _get_lang(update.effective_user.id)
-    text = update.message.text.strip()
-    parts = text.split()
-
-    if len(parts) != 2:
-        await update.message.reply_text(t("trip_dates_invalid", lang), parse_mode="Markdown")
-        return DATES
-
-    try:
-        date_from = datetime.strptime(parts[0], "%d/%m/%Y").date()
-        date_to = datetime.strptime(parts[1], "%d/%m/%Y").date()
-    except ValueError:
-        await update.message.reply_text(t("trip_dates_invalid", lang), parse_mode="Markdown")
-        return DATES
-
-    context.user_data["trip"]["date_from"] = date_from
-    context.user_data["trip"]["date_to"] = date_to
-
-    # Ask flight type
     await update.message.reply_text(
         t("flight_type_ask", lang),
         parse_mode="Markdown",
@@ -144,34 +120,43 @@ async def trip_flight_type_callback(update: Update, context: ContextTypes.DEFAUL
     flight_type = "round" if query.data == "ftype:round" else "oneway"
     context.user_data["trip"]["flight_type"] = flight_type
 
+    await query.edit_message_text(t("trip_departure_date_ask", lang), parse_mode="Markdown")
+    return DATES
+
+
+async def trip_dates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = _get_lang(update.effective_user.id)
+    text = update.message.text.strip()
+
+    try:
+        departure_date = datetime.strptime(text, "%d/%m/%Y").date()
+    except ValueError:
+        await update.message.reply_text(t("trip_date_invalid", lang), parse_mode="Markdown")
+        return DATES
+
+    context.user_data["trip"]["departure_date"] = departure_date
+
+    flight_type = context.user_data["trip"].get("flight_type", "round")
     if flight_type == "round":
-        await query.edit_message_text(t("return_dates_ask", lang), parse_mode="Markdown")
+        await update.message.reply_text(t("trip_return_date_ask", lang), parse_mode="Markdown")
         return RETURN_DATES
     else:
-        context.user_data["trip"]["return_date_from"] = None
-        context.user_data["trip"]["return_date_to"] = None
-        await query.edit_message_text(t("trip_flex_ask", lang), parse_mode="Markdown")
+        context.user_data["trip"]["return_date"] = None
+        await update.message.reply_text(t("trip_flex_ask", lang), parse_mode="Markdown")
         return FLEX
 
 
 async def trip_return_dates(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     lang = _get_lang(update.effective_user.id)
     text = update.message.text.strip()
-    parts = text.split()
-
-    if len(parts) != 2:
-        await update.message.reply_text(t("return_dates_invalid", lang), parse_mode="Markdown")
-        return RETURN_DATES
 
     try:
-        rdf = datetime.strptime(parts[0], "%d/%m/%Y").date()
-        rdt = datetime.strptime(parts[1], "%d/%m/%Y").date()
+        return_date = datetime.strptime(text, "%d/%m/%Y").date()
     except ValueError:
-        await update.message.reply_text(t("return_dates_invalid", lang), parse_mode="Markdown")
+        await update.message.reply_text(t("trip_date_invalid", lang), parse_mode="Markdown")
         return RETURN_DATES
 
-    context.user_data["trip"]["return_date_from"] = rdf
-    context.user_data["trip"]["return_date_to"] = rdt
+    context.user_data["trip"]["return_date"] = return_date
     await update.message.reply_text(t("trip_flex_ask", lang), parse_mode="Markdown")
     return FLEX
 
@@ -229,19 +214,21 @@ async def trip_direct_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
     flight_type = td.get("flight_type", "round")
     flight_type_str = t("flight_type_label_round", lang) if flight_type == "round" else t("flight_type_label_oneway", lang)
+    flex = td.get("flex_days", 3)
 
+    dep_date = td["departure_date"]
     return_dates_str = ""
-    if flight_type == "round" and td.get("return_date_from") and td.get("return_date_to"):
-        return_dates_str = f"📅 Return: {td['return_date_from'].strftime('%d/%m/%Y')} — {td['return_date_to'].strftime('%d/%m/%Y')}\n"
+    if flight_type == "round" and td.get("return_date"):
+        ret_date = td["return_date"]
+        return_dates_str = f"📅 Return: {ret_date.strftime('%d/%m/%Y')} (±{flex}d)\n"
 
     await query.edit_message_text(
         t("trip_confirm", lang,
           name=td["name"],
           origin=td["origin"],
           destination=td["destination"],
-          date_from=td["date_from"].strftime("%d/%m/%Y"),
-          date_to=td["date_to"].strftime("%d/%m/%Y"),
-          flex_days=td["flex_days"],
+          departure_date=dep_date.strftime("%d/%m/%Y"),
+          flex_days=flex,
           max_price=max_price_str,
           direct_only=direct_str,
           flight_type=flight_type_str,
@@ -265,20 +252,34 @@ async def trip_confirm_callback(update: Update, context: ContextTypes.DEFAULT_TY
     td = context.user_data.pop("trip", {})
     user = get_or_create_user(query.from_user.id, query.from_user.username)
 
+    # Compute date ranges from single date + flex
+    from datetime import timedelta
+    flex = td.get("flex_days", 3)
+    dep_date = td["departure_date"]
+    date_from = dep_date - timedelta(days=flex)
+    date_to = dep_date + timedelta(days=flex)
+
+    return_date_from = None
+    return_date_to = None
+    if td.get("flight_type", "round") == "round" and td.get("return_date"):
+        ret_date = td["return_date"]
+        return_date_from = ret_date - timedelta(days=flex)
+        return_date_to = ret_date + timedelta(days=flex)
+
     with get_session() as session:
         trip = Trip(
             user_id=user.id,
             name=td["name"],
             origin=td["origin"],
             destination=td["destination"],
-            date_from=td["date_from"],
-            date_to=td["date_to"],
-            flex_days=td.get("flex_days", 3),
+            date_from=date_from,
+            date_to=date_to,
+            flex_days=flex,
             max_price=td.get("max_price"),
             direct_only=td.get("direct_only", False),
             flight_type=td.get("flight_type", "round"),
-            return_date_from=td.get("return_date_from"),
-            return_date_to=td.get("return_date_to"),
+            return_date_from=return_date_from,
+            return_date_to=return_date_to,
         )
         session.add(trip)
 
@@ -362,30 +363,42 @@ async def trip_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             max_price_str = f"{trip.max_price:.2f} {currency}" if trip.max_price else "—"
             direct_str = t("yes", lang) if trip.direct_only else t("no", lang)
 
+            # Compute center departure date from range
+            from datetime import timedelta
+            flex = trip.flex_days or 0
+            dep_center = trip.date_from + timedelta(days=flex)
+            # Clamp to not exceed date_to
+            if dep_center > trip.date_to:
+                dep_center = trip.date_from
+
             # Flight type info
             flight_type = getattr(trip, "flight_type", "round") or "round"
             flight_type_str = t("flight_type_label_round", lang) if flight_type == "round" else t("flight_type_label_oneway", lang)
-            return_dates_str = ""
+
+            # Return date info
+            return_info = ""
             rdf = getattr(trip, "return_date_from", None)
             rdt = getattr(trip, "return_date_to", None)
             if flight_type == "round" and rdf and rdt:
-                return_dates_str = f"\n📅 Return: {rdf.strftime('%d/%m/%Y')} — {rdt.strftime('%d/%m/%Y')}"
+                ret_center = rdf + timedelta(days=flex)
+                if ret_center > rdt:
+                    ret_center = rdf
+                return_info = f"📅 Return: {ret_center.strftime('%d/%m/%Y')} (±{flex}d)\n"
 
             text = t("trip_detail", lang,
                      name=trip.name,
                      origin=trip.origin,
                      destination=trip.destination,
-                     date_from=trip.date_from.strftime("%d/%m/%Y"),
-                     date_to=trip.date_to.strftime("%d/%m/%Y"),
-                     flex_days=trip.flex_days,
+                     departure_date=dep_center.strftime("%d/%m/%Y"),
+                     flex_days=flex,
+                     return_info=return_info,
                      max_price=max_price_str,
                      direct_only=direct_str,
                      interval=trip.check_interval_hours,
                      status=status,
                      price_info=price_info)
 
-            # Append flight type and return dates
-            text += f"\n✈️ Type: {flight_type_str}{return_dates_str}"
+            text += f"\n✈️ Type: {flight_type_str}"
 
             # Try to send chart
             chart = generate_price_chart(session, trip.id, currency)
