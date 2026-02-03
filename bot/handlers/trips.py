@@ -29,6 +29,38 @@ from services.charts import generate_price_chart
 
 logger = logging.getLogger(__name__)
 
+
+async def _safe_edit_or_reply(query, text: str, parse_mode: str = "Markdown", reply_markup=None):
+    """Edit message text/caption, or send new message if the original is a photo."""
+    try:
+        if query.message and query.message.photo:
+            # It's a photo message — edit caption or send new + delete
+            try:
+                kwargs = {"caption": text, "parse_mode": parse_mode}
+                if reply_markup:
+                    kwargs["reply_markup"] = reply_markup
+                await query.edit_message_caption(**kwargs)
+            except Exception:
+                # Caption too long or other issue — send new message
+                await query.message.reply_text(
+                    text, parse_mode=parse_mode, reply_markup=reply_markup
+                )
+                try:
+                    await query.message.delete()
+                except Exception:
+                    pass
+        else:
+            kwargs = {"text": text, "parse_mode": parse_mode}
+            if reply_markup:
+                kwargs["reply_markup"] = reply_markup
+            await query.edit_message_text(**kwargs)
+    except Exception:
+        # Last resort — just send a new message
+        await query.message.reply_text(
+            text, parse_mode=parse_mode, reply_markup=reply_markup
+        )
+
+
 # Conversation states for /newtrip
 NAME, ORIGIN, DEST, DATES, FLIGHT_TYPE, RETURN_DATES, FLEX, PRICE, DIRECT, CONFIRM = range(10)
 
@@ -303,7 +335,7 @@ async def trip_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     with get_session() as session:
         trip = session.query(Trip).filter(Trip.id == trip_id).first()
         if not trip:
-            await query.edit_message_text(t("trip_not_found", lang), parse_mode="Markdown")
+            await _safe_edit_or_reply(query, t("trip_not_found", lang))
             return
 
         if action == "view":
@@ -364,41 +396,34 @@ async def trip_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 )
                 await query.delete_message()
             else:
-                await query.edit_message_text(
-                    text, parse_mode="Markdown",
+                await _safe_edit_or_reply(
+                    query, text,
                     reply_markup=trip_actions_keyboard(trip, lang),
                 )
 
         elif action == "pause":
             trip.active = False
-            await query.edit_message_text(
-                t("trip_paused", lang, name=trip.name), parse_mode="Markdown"
-            )
+            await _safe_edit_or_reply(query, t("trip_paused", lang, name=trip.name))
 
         elif action == "resume":
             trip.active = True
-            await query.edit_message_text(
-                t("trip_resumed", lang, name=trip.name), parse_mode="Markdown"
-            )
+            await _safe_edit_or_reply(query, t("trip_resumed", lang, name=trip.name))
 
         elif action == "delete":
-            await query.edit_message_text(
+            await _safe_edit_or_reply(
+                query,
                 t("confirm_delete", lang, name=trip.name),
-                parse_mode="Markdown",
                 reply_markup=confirm_delete_keyboard(trip.id, lang),
             )
 
         elif action == "confirmdelete":
             name = trip.name
             session.delete(trip)
-            await query.edit_message_text(
-                t("trip_deleted", lang, name=name), parse_mode="Markdown"
-            )
+            await _safe_edit_or_reply(query, t("trip_deleted", lang, name=name))
 
         elif action == "canceldelete":
-            await query.edit_message_text(
-                t("trip_paused", lang, name=trip.name).replace("paused", "kept"),
-                parse_mode="Markdown",
+            await _safe_edit_or_reply(
+                query, t("trip_paused", lang, name=trip.name).replace("paused", "kept")
             )
 
 
