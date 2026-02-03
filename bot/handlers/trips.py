@@ -358,7 +358,10 @@ async def trip_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             # Try to send chart
             chart = generate_price_chart(session, trip.id, currency)
             if chart:
-                await query.message.reply_photo(photo=chart, caption=text, parse_mode="Markdown")
+                await query.message.reply_photo(
+                    photo=chart, caption=text, parse_mode="Markdown",
+                    reply_markup=trip_actions_keyboard(trip, lang),
+                )
                 await query.delete_message()
             else:
                 await query.edit_message_text(

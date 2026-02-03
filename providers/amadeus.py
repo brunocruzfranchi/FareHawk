@@ -106,9 +106,17 @@ class AmadeusProvider(FlightProvider):
         token = await self._ensure_token()
         session = await self._get_session()
 
-        # Sample dates across the range (max 5 to conserve API calls)
+        # Sample outbound dates across the range (max 5 to conserve API calls)
         total_days = (date_to - date_from).days
-        if total_days <= 0:
+        if flight_type == "round" and not return_date_from and total_days > 7:
+            # Range spans the whole trip — only sample outbound from first portion
+            flex = min(3, total_days // 4)
+            sample_dates = [
+                date_from,
+                date_from + timedelta(days=flex),
+                date_from + timedelta(days=flex * 2),
+            ]
+        elif total_days <= 0:
             sample_dates = [date_from]
         elif total_days <= 4:
             sample_dates = [date_from + timedelta(days=i) for i in range(total_days + 1)]
@@ -132,7 +140,11 @@ class AmadeusProvider(FlightProvider):
                 # For round trip, calculate a proportional return date if we have a range
                 ret_date = return_date_sample
                 if flight_type == "round" and ret_date is None:
-                    ret_date = dep_date + timedelta(days=14)  # Default 2 weeks
+                    # No return dates set — if outbound range > 7 days, assume date_to is return
+                    if (date_to - date_from).days > 7:
+                        ret_date = date_to
+                    else:
+                        ret_date = dep_date + timedelta(days=14)
 
                 results = await self._search_date(
                     session, token, origin, destination, dep_date,

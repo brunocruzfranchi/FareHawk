@@ -5,6 +5,7 @@ import logging
 import sys
 from functools import partial
 
+from telegram import BotCommand
 from telegram.ext import Application
 
 from core.config import config
@@ -62,6 +63,16 @@ def main() -> None:
 
     # Post-init hook: start scheduler after bot is ready
     async def post_init(application: Application) -> None:
+        # Set bot menu commands
+        await application.bot.set_my_commands([
+            BotCommand("newtrip", "Create a new trip to watch"),
+            BotCommand("trips", "List your trips"),
+            BotCommand("check", "Force an immediate price check"),
+            BotCommand("search", "Quick one-off flight search"),
+            BotCommand("edit", "Edit an existing trip"),
+            BotCommand("settings", "Change language or currency"),
+            BotCommand("help", "Show help message"),
+        ])
         start_scheduler(price_check_job, digest_callback=digest_job)
         logger.info("🦅 FareHawk is online!")
 

@@ -60,9 +60,19 @@ class SerpAPIProvider(FlightProvider):
 
         session = await self._get_session()
 
-        # Sample up to 3 dates across the outbound range
+        # Sample up to 3 outbound dates
+        # If return dates aren't set and range is > 7 days, the range likely
+        # spans the whole trip (outbound to return), so only sample the first few days
         total_days = (date_to - date_from).days
-        if total_days <= 0:
+        if flight_type == "round" and not return_date_from and total_days > 7:
+            # Range is the whole trip — sample outbound from first ~3 days
+            flex = min(3, total_days // 4)
+            sample_dates = [
+                date_from,
+                date_from + timedelta(days=flex),
+                date_from + timedelta(days=flex * 2),
+            ]
+        elif total_days <= 0:
             sample_dates = [date_from]
         elif total_days <= 2:
             sample_dates = [date_from + timedelta(days=i) for i in range(total_days + 1)]
@@ -74,14 +84,13 @@ class SerpAPIProvider(FlightProvider):
                 date_to,
             ]
 
-        # Sample a return date if round trip
+        # Determine return date for round trips
         return_sample: Optional[date] = None
         if flight_type == "round" and return_date_from and return_date_to:
             ret_days = (return_date_to - return_date_from).days
             return_sample = return_date_from + timedelta(days=ret_days // 2)
-        elif flight_type == "round":
-            # Default: return 7 days after outbound
-            return_sample = None  # Will be set per outbound date below
+        elif flight_type == "round" and return_date_from:
+            return_sample = return_date_from
 
         all_results: list[FlightResult] = []
 
@@ -89,7 +98,12 @@ class SerpAPIProvider(FlightProvider):
             try:
                 ret_date = return_sample
                 if flight_type == "round" and ret_date is None:
-                    ret_date = dep_date + timedelta(days=7)
+                    # No return dates set — estimate: use date_to + 14 days from dep
+                    # or if date range is > 7 days, assume date_to is roughly the return
+                    if (date_to - date_from).days > 7:
+                        ret_date = date_to
+                    else:
+                        ret_date = dep_date + timedelta(days=14)
 
                 results = await self._search_date(
                     session, origin, destination, dep_date,
