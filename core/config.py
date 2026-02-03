@@ -47,8 +47,11 @@ class Config:
         """Raise if critical config is missing."""
         if not self.telegram_bot_token:
             raise ValueError("TELEGRAM_BOT_TOKEN is required")
-        if not self.kiwi_api_key:
-            raise ValueError("KIWI_API_KEY is required (set it in .env)")
+        if not self.kiwi_api_key and not self.amadeus_api_key:
+            raise ValueError(
+                "At least one flight provider is required. "
+                "Set KIWI_API_KEY or AMADEUS_API_KEY/AMADEUS_API_SECRET in .env"
+            )
 
 
 config = Config()
