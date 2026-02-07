@@ -20,15 +20,18 @@ class FlightAggregator:
 
     def __init__(self) -> None:
         self._providers: list[FlightProvider] = []
-        # Always add Kiwi if key is available
-        if config.kiwi_api_key:
-            self._providers.append(KiwiProvider())
-        # Amadeus
-        if config.amadeus_api_key:
-            self._providers.append(AmadeusProvider())
-        # SerpAPI Google Flights
+        # SerpAPI Google Flights (primary provider)
         if config.serpapi_key:
             self._providers.append(SerpAPIProvider())
+        # Kiwi (disabled — no API key)
+        # if config.kiwi_api_key:
+        #     self._providers.append(KiwiProvider())
+        # Amadeus (disabled — test-only credentials)
+        # if config.amadeus_api_key:
+        #     self._providers.append(AmadeusProvider())
+        # Skyscanner (disabled — needs RapidAPI subscription)
+        # if config.rapidapi_key:
+        #     self._providers.append(SkyscannerProvider())
         # Skyscanner via RapidAPI
         if config.rapidapi_key:
             self._providers.append(SkyscannerProvider())
