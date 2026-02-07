@@ -19,12 +19,8 @@ from providers.base import FlightProvider, FlightResult
 
 logger = logging.getLogger(__name__)
 
-AUTH_URL = "https://test.api.amadeus.com/v1/security/oauth2/token"
-SEARCH_URL = "https://test.api.amadeus.com/v2/shopping/flight-offers"
-
-# Use production URLs when ready:
-# AUTH_URL = "https://api.amadeus.com/v1/security/oauth2/token"
-# SEARCH_URL = "https://api.amadeus.com/v2/shopping/flight-offers"
+AUTH_URL = "https://api.amadeus.com/v1/security/oauth2/token"
+SEARCH_URL = "https://api.amadeus.com/v2/shopping/flight-offers"
 
 
 class AmadeusProvider(FlightProvider):

@@ -226,10 +226,24 @@ class SerpAPIProvider(FlightProvider):
                     except (ValueError, TypeError):
                         pass
 
-                # Build Google Flights deep link as booking link
-                booking_link = self._build_google_flights_link(
-                    origin, destination, departure_date, return_date,
-                )
+                # Prefer booking_token or departure_token link if available
+                departure_token = flight.get("departure_token", "")
+                booking_token = flight.get("booking_token", "")
+                if booking_token:
+                    booking_link = (
+                        f"https://www.google.com/travel/flights/booking?"
+                        f"hl=en&gl=us&booking_token={quote(booking_token)}"
+                    )
+                elif departure_token:
+                    booking_link = (
+                        f"https://www.google.com/travel/flights/booking?"
+                        f"hl=en&gl=us&departure_token={quote(departure_token)}"
+                    )
+                else:
+                    booking_link = self._build_google_flights_link(
+                        origin, destination, departure_date, return_date,
+                        airlines=sorted(airlines),
+                    )
 
                 # Flight details
                 flight_details = {
@@ -280,12 +294,17 @@ class SerpAPIProvider(FlightProvider):
         destination: str,
         departure_date: date,
         return_date: Optional[date] = None,
+        airlines: Optional[list[str]] = None,
     ) -> str:
-        """Build a Google Flights URL for the given route."""
-        q = f"Flights from {origin} to {destination} on {departure_date.isoformat()}"
+        """Build a Google Flights deep link for the given route."""
+        dep_str = departure_date.isoformat()
+        url = (
+            f"https://www.google.com/travel/flights#search;"
+            f"f={origin.upper()};t={destination.upper()};d={dep_str}"
+        )
         if return_date:
-            q += f" return {return_date.isoformat()}"
-        return f"https://www.google.com/travel/flights?q={quote(q)}"
+            url += f";r={return_date.isoformat()}"
+        return url
 
     async def close(self) -> None:
         if self._session and not self._session.closed:

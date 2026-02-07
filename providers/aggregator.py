@@ -9,6 +9,7 @@ from providers.base import FlightProvider, FlightResult
 from providers.kiwi import KiwiProvider
 from providers.amadeus import AmadeusProvider
 from providers.serpapi import SerpAPIProvider
+from providers.skyscanner import SkyscannerProvider
 from core.config import config
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,9 @@ class FlightAggregator:
         # SerpAPI Google Flights
         if config.serpapi_key:
             self._providers.append(SerpAPIProvider())
+        # Skyscanner via RapidAPI
+        if config.rapidapi_key:
+            self._providers.append(SkyscannerProvider())
 
         if not self._providers:
             logger.warning("No flight providers configured — set KIWI_API_KEY in .env")

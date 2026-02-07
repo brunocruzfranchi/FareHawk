@@ -94,7 +94,8 @@ farehawk/
 ├── providers/              # Flight data providers
 │   ├── base.py             # Abstract provider + FlightResult
 │   ├── kiwi.py             # Kiwi/Tequila API
-│   ├── amadeus.py          # Amadeus (Phase 2 stub)
+│   ├── amadeus.py          # Amadeus Self-Service API
+│   ├── skyscanner.py       # Skyscanner via RapidAPI
 │   └── aggregator.py       # Multi-source aggregation
 ├── services/               # Business logic
 │   ├── price_checker.py    # Periodic check runner
@@ -133,6 +134,8 @@ farehawk/
 | `KIWI_API_KEY` | ✅ | — | Kiwi Tequila API key |
 | `AMADEUS_API_KEY` | ❌ | — | Amadeus API key (Phase 2) |
 | `AMADEUS_API_SECRET` | ❌ | — | Amadeus API secret (Phase 2) |
+| `SERPAPI_KEY` | ❌ | — | SerpAPI key for Google Flights |
+| `RAPIDAPI_KEY` | ❌ | — | RapidAPI key for Skyscanner |
 | `DATABASE_URL` | ❌ | `sqlite:///data/farehawk.db` | SQLAlchemy database URL |
 | `LOG_LEVEL` | ❌ | `INFO` | Logging level |
 
