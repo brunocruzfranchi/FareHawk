@@ -16,28 +16,24 @@ logger = logging.getLogger(__name__)
 
 
 class FlightAggregator:
-    """Query multiple providers and return sorted, de-duplicated results."""
+    """Query configured providers and return results sorted by price."""
 
     def __init__(self) -> None:
         self._providers: list[FlightProvider] = []
-        # SerpAPI Google Flights (primary provider)
         if config.serpapi_key:
             self._providers.append(SerpAPIProvider())
-        # Kiwi (disabled — no API key)
-        # if config.kiwi_api_key:
-        #     self._providers.append(KiwiProvider())
-        # Amadeus (disabled — test-only credentials)
-        # if config.amadeus_api_key:
-        #     self._providers.append(AmadeusProvider())
-        # Skyscanner (disabled — needs RapidAPI subscription)
-        # if config.rapidapi_key:
-        #     self._providers.append(SkyscannerProvider())
-        # Skyscanner via RapidAPI
+        if config.kiwi_api_key:
+            self._providers.append(KiwiProvider())
+        if config.amadeus_api_key and config.amadeus_api_secret:
+            self._providers.append(AmadeusProvider())
         if config.rapidapi_key:
             self._providers.append(SkyscannerProvider())
 
         if not self._providers:
-            logger.warning("No flight providers configured — set KIWI_API_KEY in .env")
+            logger.warning(
+                "No flight providers configured — set SERPAPI_KEY, KIWI_API_KEY, "
+                "AMADEUS_API_KEY/AMADEUS_API_SECRET, or RAPIDAPI_KEY in .env"
+            )
 
     async def search(
         self,

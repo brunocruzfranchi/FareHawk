@@ -49,11 +49,22 @@ class Config:
     default_currency: str = "USD"
     price_drop_threshold_pct: float = 10.0  # Alert when price drops >10%
 
+    def provider_status(self) -> dict[str, bool]:
+        """Return enabled provider flags based on complete credentials."""
+        return {
+            "kiwi": bool(self.kiwi_api_key),
+            "amadeus": bool(self.amadeus_api_key and self.amadeus_api_secret),
+            "serpapi": bool(self.serpapi_key),
+            "skyscanner": bool(self.rapidapi_key),
+        }
+
     def validate(self) -> None:
         """Raise if critical config is missing."""
         if not self.telegram_bot_token:
             raise ValueError("TELEGRAM_BOT_TOKEN is required")
-        if not self.kiwi_api_key and not self.amadeus_api_key and not self.serpapi_key and not self.rapidapi_key:
+        if bool(self.amadeus_api_key) != bool(self.amadeus_api_secret):
+            raise ValueError("AMADEUS_API_KEY and AMADEUS_API_SECRET must be set together")
+        if not any(self.provider_status().values()):
             raise ValueError(
                 "At least one flight provider is required. "
                 "Set KIWI_API_KEY, AMADEUS_API_KEY/AMADEUS_API_SECRET, SERPAPI_KEY, or RAPIDAPI_KEY in .env"

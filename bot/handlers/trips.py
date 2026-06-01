@@ -78,6 +78,16 @@ def _get_currency(user_id: int) -> str:
     return user.currency
 
 
+def _get_user_trip(session, trip_id: int, telegram_id: int) -> Trip | None:
+    """Return a trip only if it belongs to the Telegram user."""
+    return (
+        session.query(Trip)
+        .join(User)
+        .filter(Trip.id == trip_id, User.telegram_id == telegram_id)
+        .first()
+    )
+
+
 # ── /newtrip Wizard ──────────────────────────────────────────────────
 
 async def newtrip_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -334,7 +344,7 @@ async def trip_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     currency = _get_currency(query.from_user.id)
 
     with get_session() as session:
-        trip = session.query(Trip).filter(Trip.id == trip_id).first()
+        trip = _get_user_trip(session, trip_id, query.from_user.id)
         if not trip:
             await _safe_edit_or_reply(query, t("trip_not_found", lang))
             return
@@ -491,7 +501,7 @@ async def edit_select_trip_callback(update: Update, context: ContextTypes.DEFAUL
     context.user_data["edit"] = {"trip_id": trip_id}
 
     with get_session() as session:
-        trip = session.query(Trip).filter(Trip.id == trip_id).first()
+        trip = _get_user_trip(session, trip_id, query.from_user.id)
         if not trip:
             await query.edit_message_text(t("trip_not_found", lang), parse_mode="Markdown")
             return ConversationHandler.END
@@ -517,6 +527,12 @@ async def edit_select_field_callback(update: Update, context: ContextTypes.DEFAU
     field = parts[2]
 
     context.user_data["edit"] = {"trip_id": trip_id, "field": field}
+
+    with get_session() as session:
+        trip = _get_user_trip(session, trip_id, query.from_user.id)
+        if not trip:
+            await query.edit_message_text(t("trip_not_found", lang), parse_mode="Markdown")
+            return ConversationHandler.END
 
     # For direct_only and flight_type, show inline keyboard instead of text input
     if field == "direct":
@@ -580,10 +596,12 @@ async def edit_value_text(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             dt = datetime.strptime(parts[1], "%d/%m/%Y").date()
             # Will set both below
             with get_session() as session:
-                trip = session.query(Trip).filter(Trip.id == trip_id).first()
-                if trip:
-                    trip.date_from = df
-                    trip.date_to = dt
+                trip = _get_user_trip(session, trip_id, update.effective_user.id)
+                if not trip:
+                    await update.message.reply_text(t("trip_not_found", lang), parse_mode="Markdown")
+                    return ConversationHandler.END
+                trip.date_from = df
+                trip.date_to = dt
             field_label = t("edit_field_dates", lang)
             await update.message.reply_text(
                 t("edit_saved", lang, field=field_label, value=f"{parts[0]} — {parts[1]}"),
@@ -620,9 +638,11 @@ async def edit_value_text(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     db_field = field_map.get(field)
     if db_field:
         with get_session() as session:
-            trip = session.query(Trip).filter(Trip.id == trip_id).first()
-            if trip:
-                setattr(trip, db_field, value)
+            trip = _get_user_trip(session, trip_id, update.effective_user.id)
+            if not trip:
+                await update.message.reply_text(t("trip_not_found", lang), parse_mode="Markdown")
+                return ConversationHandler.END
+            setattr(trip, db_field, value)
 
     field_label = t(f"edit_field_{field}", lang)
     await update.message.reply_text(
@@ -650,17 +670,21 @@ async def edit_value_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         value = query.data == "yn:yes"
         display_value = t("yes", lang) if value else t("no", lang)
         with get_session() as session:
-            trip = session.query(Trip).filter(Trip.id == trip_id).first()
-            if trip:
-                trip.direct_only = value
+            trip = _get_user_trip(session, trip_id, query.from_user.id)
+            if not trip:
+                await query.edit_message_text(t("trip_not_found", lang), parse_mode="Markdown")
+                return ConversationHandler.END
+            trip.direct_only = value
 
     elif field == "flight_type":
         value = "round" if query.data == "ftype:round" else "oneway"
         display_value = t(f"flight_type_label_{value}", lang)
         with get_session() as session:
-            trip = session.query(Trip).filter(Trip.id == trip_id).first()
-            if trip:
-                trip.flight_type = value
+            trip = _get_user_trip(session, trip_id, query.from_user.id)
+            if not trip:
+                await query.edit_message_text(t("trip_not_found", lang), parse_mode="Markdown")
+                return ConversationHandler.END
+            trip.flight_type = value
 
     else:
         await query.edit_message_text(t("edit_cancelled", lang), parse_mode="Markdown")
