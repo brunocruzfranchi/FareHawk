@@ -26,19 +26,30 @@ def evaluate_alerts(
     """
     alerts: list[Alert] = []
 
-    # Fetch previous snapshots for comparison
-    prev_snapshot = (
-        session.query(PriceSnapshot)
+    latest_snapshot_id_row = (
+        session.query(PriceSnapshot.id)
         .filter(PriceSnapshot.trip_id == trip.id)
-        .order_by(PriceSnapshot.timestamp.desc())
-        .offset(1)  # skip the one we just inserted
+        .order_by(PriceSnapshot.timestamp.desc(), PriceSnapshot.id.desc())
+        .first()
+    )
+    latest_snapshot_id = latest_snapshot_id_row[0] if latest_snapshot_id_row else None
+
+    previous_snapshots = session.query(PriceSnapshot).filter(PriceSnapshot.trip_id == trip.id)
+    if latest_snapshot_id is not None:
+        previous_snapshots = previous_snapshots.filter(PriceSnapshot.id != latest_snapshot_id)
+
+    # Fetch previous snapshots for comparison. The caller inserts the current
+    # snapshot before evaluating alerts, so comparisons must exclude it.
+    prev_snapshot = (
+        previous_snapshots
+        .order_by(PriceSnapshot.timestamp.desc(), PriceSnapshot.id.desc())
         .first()
     )
 
-    # Historical minimum
+    # Historical minimum before the current result.
     min_price_row = (
-        session.query(PriceSnapshot.price)
-        .filter(PriceSnapshot.trip_id == trip.id)
+        previous_snapshots
+        .with_entities(PriceSnapshot.price)
         .order_by(PriceSnapshot.price.asc())
         .first()
     )
@@ -95,7 +106,7 @@ def evaluate_alerts(
 
     # 3) Under budget threshold
     if trip.max_price and best.price <= trip.max_price:
-        # Only alert once per day for threshold
+        # Only alert once per exact observed price.
         recent_threshold = (
             session.query(Alert)
             .filter(
