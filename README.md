@@ -128,6 +128,13 @@ pip install -r requirements-dev.txt
 python -m pytest -q
 ```
 
+Or, with `uv`:
+
+```bash
+uv sync --dev
+uv run pytest
+```
+
 The current test suite covers provider configuration, alert history evaluation, and trip ownership checks for callback actions.
 
 ## Project Structure
