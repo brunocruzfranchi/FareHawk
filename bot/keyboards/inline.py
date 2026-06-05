@@ -1,5 +1,7 @@
 """Inline keyboard builders for FareHawk bot."""
 
+from urllib.parse import quote
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from bot.i18n import t
 
@@ -53,13 +55,27 @@ def trip_list_keyboard(trips: list, lang: str = "en") -> InlineKeyboardMarkup:
 
 def trip_actions_keyboard(trip, lang: str = "en") -> InlineKeyboardMarkup:
     """Action buttons for a single trip."""
-    row = []
-    if trip.active:
-        row.append(InlineKeyboardButton(t("btn_pause", lang), callback_data=f"trip:pause:{trip.id}"))
-    else:
-        row.append(InlineKeyboardButton(t("btn_resume", lang), callback_data=f"trip:resume:{trip.id}"))
-    row.append(InlineKeyboardButton(t("btn_delete", lang), callback_data=f"trip:delete:{trip.id}"))
-    return InlineKeyboardMarkup([row])
+    status_button = (
+        InlineKeyboardButton(t("btn_pause", lang), callback_data=f"trip:pause:{trip.id}")
+        if trip.active
+        else InlineKeyboardButton(t("btn_resume", lang), callback_data=f"trip:resume:{trip.id}")
+    )
+    search_query = quote(f"Flights from {trip.origin} to {trip.destination}")
+    search_url = f"https://www.google.com/travel/flights?q={search_query}"
+
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(t("btn_chart", lang), callback_data=f"trip:chart:{trip.id}"),
+            InlineKeyboardButton(t("btn_edit", lang), callback_data=f"edtrip:{trip.id}"),
+        ],
+        [
+            InlineKeyboardButton(t("btn_open_search", lang), url=search_url),
+        ],
+        [
+            status_button,
+            InlineKeyboardButton(t("btn_delete", lang), callback_data=f"trip:delete:{trip.id}"),
+        ],
+    ])
 
 
 def confirm_delete_keyboard(trip_id: int, lang: str = "en") -> InlineKeyboardMarkup:
