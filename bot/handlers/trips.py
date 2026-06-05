@@ -429,7 +429,15 @@ async def trip_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             text += f"\n✈️ Type: {flight_type_str}"
 
             # Try to send chart
-            chart = generate_price_chart(session, trip.id, currency)
+            chart_title = f"{trip.origin} → {trip.destination} Price History"
+            chart = generate_price_chart(
+                session,
+                trip.id,
+                currency,
+                budget=trip.max_price,
+                days=90,
+                title=chart_title,
+            )
             if chart:
                 await query.message.reply_photo(
                     photo=chart, caption=text, parse_mode="Markdown",
