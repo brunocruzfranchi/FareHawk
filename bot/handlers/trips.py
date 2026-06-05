@@ -450,6 +450,30 @@ async def trip_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                     reply_markup=trip_actions_keyboard(trip, lang),
                 )
 
+        elif action == "chart":
+            chart_title = f"{trip.origin} → {trip.destination} Price History"
+            chart = generate_price_chart(
+                session,
+                trip.id,
+                currency,
+                budget=trip.max_price,
+                days=90,
+                title=chart_title,
+            )
+            if chart:
+                await query.message.reply_photo(
+                    photo=chart,
+                    caption=chart_title,
+                    parse_mode="Markdown",
+                    reply_markup=trip_actions_keyboard(trip, lang),
+                )
+            else:
+                await _safe_edit_or_reply(
+                    query,
+                    t("no_prices_yet", lang),
+                    reply_markup=trip_actions_keyboard(trip, lang),
+                )
+
         elif action == "pause":
             trip.active = False
             await _safe_edit_or_reply(query, t("trip_paused", lang, name=trip.name))
@@ -740,7 +764,10 @@ def register(app) -> None:
 
     # Conversation for /edit
     edit_conv = ConversationHandler(
-        entry_points=[CommandHandler("edit", edit_start)],
+        entry_points=[
+            CommandHandler("edit", edit_start),
+            CallbackQueryHandler(edit_select_trip_callback, pattern=r"^edtrip:"),
+        ],
         states={
             EDIT_SELECT_TRIP: [CallbackQueryHandler(edit_select_trip_callback, pattern=r"^edtrip:")],
             EDIT_SELECT_FIELD: [CallbackQueryHandler(edit_select_field_callback, pattern=r"^editfield:")],
