@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import datetime
+from core.time import utc_now
 from urllib.parse import quote
 
 from telegram import Bot
@@ -56,7 +56,7 @@ async def run_price_check(bot: Bot, aggregator: FlightAggregator) -> None:
                 # Save snapshot
                 snapshot = PriceSnapshot(
                     trip_id=trip.id,
-                    timestamp=datetime.utcnow(),
+                    timestamp=utc_now(),
                     price=best.price,
                     currency=currency,
                     airline=best.airline,
