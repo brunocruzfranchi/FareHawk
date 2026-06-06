@@ -3,6 +3,8 @@
 import logging
 from datetime import datetime, timedelta
 
+from core.time import utc_now
+
 from telegram import Bot
 
 from core.database import get_session
@@ -38,7 +40,7 @@ def build_weekly_digest_message(session, user: User, *, now: datetime | None = N
 
     lang = user.language or "en"
     currency = user.currency or "USD"
-    now = now or datetime.utcnow()
+    now = now or utc_now()
     one_week_ago = now - timedelta(days=7)
 
     msg = t("digest_header", lang)

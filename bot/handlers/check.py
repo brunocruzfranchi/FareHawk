@@ -11,7 +11,7 @@ from core.database import get_or_create_user, get_session
 from core.models import User, Trip, PriceSnapshot
 from providers.aggregator import FlightAggregator
 from providers.base import FlightResult
-from datetime import datetime
+from core.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +118,7 @@ async def check_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
                 best = results[0]
                 snapshot = PriceSnapshot(
                     trip_id=trip.id,
-                    timestamp=datetime.utcnow(),
+                    timestamp=utc_now(),
                     price=best.price,
                     currency=currency,
                     airline=best.airline,

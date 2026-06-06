@@ -2,7 +2,9 @@
 
 import io
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
+
+from core.time import utc_now
 
 import matplotlib
 matplotlib.use("Agg")  # Non-interactive backend
@@ -36,7 +38,7 @@ def generate_price_chart(
     )
 
     if days:
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = utc_now() - timedelta(days=days)
         query = query.filter(PriceSnapshot.timestamp >= cutoff)
 
     snapshots = query.all()

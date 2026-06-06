@@ -1,6 +1,8 @@
 """SQLAlchemy ORM models for FareHawk."""
 
-from datetime import datetime, date
+from datetime import date
+
+from core.time import utc_now
 from sqlalchemy import (
     Column, Integer, BigInteger, String, Float, Boolean, Date,
     DateTime, Text, ForeignKey, UniqueConstraint,
@@ -18,7 +20,7 @@ class User(Base):
     username = Column(String(255), nullable=True)
     language = Column(String(5), nullable=False, default="en")
     currency = Column(String(3), nullable=False, default="USD")
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=utc_now)
 
     trips = relationship("Trip", back_populates="user", cascade="all, delete-orphan")
 
@@ -45,8 +47,8 @@ class Trip(Base):
     max_stopovers = Column(Integer, nullable=True)
     check_interval_hours = Column(Integer, nullable=False, default=3)
     active = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False, default=utc_now)
+    updated_at = Column(DateTime, nullable=False, default=utc_now, onupdate=utc_now)
 
     user = relationship("User", back_populates="trips")
     snapshots = relationship("PriceSnapshot", back_populates="trip", cascade="all, delete-orphan",
@@ -62,7 +64,7 @@ class PriceSnapshot(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     trip_id = Column(Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False)
-    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
+    timestamp = Column(DateTime, nullable=False, default=utc_now)
     price = Column(Float, nullable=False)
     currency = Column(String(3), nullable=False, default="USD")
     airline = Column(String(100), nullable=True)
@@ -85,7 +87,7 @@ class Alert(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     trip_id = Column(Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False)
     alert_type = Column(String(50), nullable=False)  # price_drop / new_low / threshold
-    triggered_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    triggered_at = Column(DateTime, nullable=False, default=utc_now)
     price = Column(Float, nullable=False)
     previous_price = Column(Float, nullable=True)
     details = Column(Text, nullable=True)  # JSON blob

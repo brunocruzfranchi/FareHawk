@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import datetime
+from core.time import utc_now
 from urllib.parse import quote
 
 from sqlalchemy.orm import Session
@@ -79,7 +79,7 @@ def evaluate_alerts(
             alert = Alert(
                 trip_id=trip.id,
                 alert_type="price_drop",
-                triggered_at=datetime.utcnow(),
+                triggered_at=utc_now(),
                 price=best.price,
                 previous_price=prev_snapshot.price,
                 details=details,
@@ -94,7 +94,7 @@ def evaluate_alerts(
         alert = Alert(
             trip_id=trip.id,
             alert_type="new_low",
-            triggered_at=datetime.utcnow(),
+            triggered_at=utc_now(),
             price=best.price,
             previous_price=historical_min,
             details=details,
@@ -120,7 +120,7 @@ def evaluate_alerts(
             alert = Alert(
                 trip_id=trip.id,
                 alert_type="threshold",
-                triggered_at=datetime.utcnow(),
+                triggered_at=utc_now(),
                 price=best.price,
                 previous_price=None,
                 details=details,
