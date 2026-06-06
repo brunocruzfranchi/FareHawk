@@ -13,7 +13,7 @@ from urllib.parse import quote
 import aiohttp
 
 from core.config import config
-from providers.base import FlightProvider, FlightResult
+from providers.base import FlightProvider, FlightResult, ProviderMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,17 @@ class SerpAPIProvider(FlightProvider):
     """Search flights via SerpAPI Google Flights."""
 
     name = "serpapi"
+    metadata = ProviderMetadata(
+        display_name="SerpAPI Google Flights",
+        tier="commercial",
+        is_official=False,
+        recommendation="optional",
+        credentials=("SERPAPI_KEY",),
+        setup_difficulty="easy: create SerpAPI account and copy API key",
+        docs_url="https://serpapi.com/google-flights-api",
+        supports_booking_links=True,
+        notes="Commercial Google Flights metasearch proxy; useful result quality but not a pure open-data provider.",
+    )
 
     def __init__(self) -> None:
         self._session: Optional[aiohttp.ClientSession] = None

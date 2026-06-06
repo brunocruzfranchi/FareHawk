@@ -10,7 +10,6 @@ def _provider_config(**overrides):
         "amadeus_api_key": "",
         "amadeus_api_secret": "",
         "serpapi_key": "",
-        "rapidapi_key": "",
     }
     values.update(overrides)
     return SimpleNamespace(**values)
@@ -25,7 +24,6 @@ def test_aggregator_enables_all_configured_providers(monkeypatch):
             kiwi_api_key="kiwi",
             amadeus_api_key="amadeus",
             amadeus_api_secret="secret",
-            rapidapi_key="rapidapi",
         ),
     )
 
@@ -35,7 +33,6 @@ def test_aggregator_enables_all_configured_providers(monkeypatch):
         "serpapi",
         "kiwi",
         "amadeus",
-        "skyscanner",
     ]
 
 

@@ -16,16 +16,26 @@ FareHawk is a Telegram bot for tracking flight prices. Users create watched trip
 
 ## Flight Providers
 
-FareHawk can query any provider configured in `.env`:
+FareHawk can query any provider configured in `.env`. For open-source usage, providers are intentionally classified by setup friction and data-source risk:
 
-| Provider | Environment variable(s) | Notes |
-|----------|--------------------------|-------|
-| SerpAPI Google Flights | `SERPAPI_KEY` | Uses SerpAPI's Google Flights engine |
-| Kiwi / Tequila | `KIWI_API_KEY` | Uses Kiwi Tequila search |
-| Amadeus Self-Service | `AMADEUS_API_KEY`, `AMADEUS_API_SECRET` | Both values are required together |
-| Skyscanner via RapidAPI | `RAPIDAPI_KEY` | Requires access to the RapidAPI Skyscanner API |
+| Provider | Tier | Environment variable(s) | Recommendation | Notes |
+|----------|------|--------------------------|----------------|-------|
+| Amadeus Self-Service | Official | `AMADEUS_API_KEY`, `AMADEUS_API_SECRET`, optional `AMADEUS_ENV` | Recommended default | Official self-service API. `AMADEUS_ENV=test` uses sandbox endpoints; `AMADEUS_ENV=production` uses live endpoints. |
+| SerpAPI Google Flights | Commercial | `SERPAPI_KEY` | Optional | Easy setup and strong metasearch results, but it is a paid Google Flights API proxy rather than an open data source. |
+| Kiwi / Tequila | Affiliate | `KIWI_API_KEY` | Optional | Useful for affiliate/deep links where available; setup depends on Kiwi partner/Tequila access. |
 
-At least one provider must be configured for the bot to start.
+At least one provider must be configured for the bot to start. For a clean open-source setup, start with Amadeus and add optional providers only when their terms/setup fit your deployment.
+
+### Provider Setup Difficulty Review
+
+Tested/documented reachability as of this project revision:
+
+- **Amadeus Self-Service** — docs and pricing pages are publicly reachable. Easiest official baseline. Sandbox works with developer credentials; production requires switching `AMADEUS_ENV=production` and enabling live access in Amadeus.
+- **SerpAPI Google Flights** — docs are publicly reachable and key setup is simple. Good optional paid provider, but not an official Google Flights API.
+- **Kiwi Tequila** — docs page is reachable, but product access is partner-oriented. Keep optional.
+- **Official Skyscanner Partners API** — application page is reachable, but it requires partner approval. Prefer this over unofficial wrappers if accepted.
+- **RapidAPI Sky-Scanner3** — removed from supported providers after a no-credential reachability check returned `HTTP 404 {"message":"API doesn't exists"}` from the host/path used by the old integration. Re-add only after verifying a maintained endpoint and terms.
+- **Duffel** — docs/pricing are reachable and the API is strong for shopping + booking flows. It is not implemented yet because it is more of a booking infrastructure provider than a lightweight price-watching source.
 
 ## Commands
 
@@ -70,7 +80,7 @@ SERPAPI_KEY=
 KIWI_API_KEY=
 AMADEUS_API_KEY=
 AMADEUS_API_SECRET=
-RAPIDAPI_KEY=
+AMADEUS_ENV=test
 
 DATABASE_URL=sqlite:///data/farehawk.db
 LOG_LEVEL=INFO
@@ -115,7 +125,7 @@ python bot/main.py
 | `KIWI_API_KEY` | One provider required | - | Kiwi Tequila API key |
 | `AMADEUS_API_KEY` | With `AMADEUS_API_SECRET` | - | Amadeus Self-Service API key |
 | `AMADEUS_API_SECRET` | With `AMADEUS_API_KEY` | - | Amadeus Self-Service API secret |
-| `RAPIDAPI_KEY` | One provider required | - | RapidAPI key for the Skyscanner provider |
+| `AMADEUS_ENV` | No | `test` | `test` for Amadeus sandbox endpoints, `production` for live endpoints |
 | `DATABASE_URL` | No | `sqlite:///data/farehawk.db` | SQLAlchemy database URL |
 | `LOG_LEVEL` | No | `INFO` | Python logging level |
 
