@@ -10,7 +10,6 @@ def _config(**overrides) -> Config:
         "amadeus_api_key": "",
         "amadeus_api_secret": "",
         "serpapi_key": "",
-        "rapidapi_key": "",
     }
     values.update(overrides)
     return Config(**values)
@@ -32,5 +31,4 @@ def test_config_requires_complete_amadeus_credentials():
 def test_config_accepts_supported_provider_credentials():
     _config(kiwi_api_key="key").validate()
     _config(serpapi_key="key").validate()
-    _config(rapidapi_key="key").validate()
     _config(amadeus_api_key="key", amadeus_api_secret="secret").validate()

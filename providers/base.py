@@ -3,7 +3,26 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Optional
+from typing import Literal, Optional
+
+ProviderTier = Literal["official", "commercial", "affiliate", "experimental"]
+ProviderRecommendation = Literal["recommended", "optional", "discouraged"]
+
+
+@dataclass(frozen=True)
+class ProviderMetadata:
+    """Open-source suitability and setup notes for a flight provider."""
+
+    display_name: str
+    tier: ProviderTier
+    is_official: bool
+    recommendation: ProviderRecommendation
+    credentials: tuple[str, ...]
+    setup_difficulty: str
+    docs_url: str
+    supports_booking_links: bool = False
+    supports_production: bool = True
+    notes: str = ""
 
 
 @dataclass
@@ -34,6 +53,17 @@ class FlightProvider(ABC):
     """Base class that all flight providers must implement."""
 
     name: str = "base"
+    metadata = ProviderMetadata(
+        display_name="Base provider",
+        tier="experimental",
+        is_official=False,
+        recommendation="discouraged",
+        credentials=(),
+        setup_difficulty="n/a",
+        docs_url="",
+        supports_production=False,
+        notes="Abstract provider base class.",
+    )
 
     @abstractmethod
     async def search(

@@ -14,21 +14,37 @@ from typing import Optional
 import aiohttp
 from urllib.parse import quote
 
-from core.config import config
-from providers.base import FlightProvider, FlightResult
+from core.config import Config, config
+from providers.base import FlightProvider, FlightResult, ProviderMetadata
 
 logger = logging.getLogger(__name__)
 
-AUTH_URL = "https://test.api.amadeus.com/v1/security/oauth2/token"
-SEARCH_URL = "https://test.api.amadeus.com/v2/shopping/flight-offers"
+TEST_BASE_URL = "https://test.api.amadeus.com"
+PRODUCTION_BASE_URL = "https://api.amadeus.com"
 
 
 class AmadeusProvider(FlightProvider):
     """Search flights via the Amadeus Self-Service API."""
 
     name = "amadeus"
+    metadata = ProviderMetadata(
+        display_name="Amadeus Self-Service",
+        tier="official",
+        is_official=True,
+        recommendation="recommended",
+        credentials=("AMADEUS_API_KEY", "AMADEUS_API_SECRET"),
+        setup_difficulty="easy: create Amadeus for Developers app; test env works immediately, production requires going live",
+        docs_url="https://developers.amadeus.com/self-service/category/flights/api-doc/flight-offers-search",
+        supports_booking_links=False,
+        notes="Best OSS baseline because it is official and has a documented self-service path. Configure AMADEUS_ENV=production for live endpoints.",
+    )
 
-    def __init__(self) -> None:
+    def __init__(self, config_override: Optional[Config] = None) -> None:
+        self._config = config_override or config
+        amadeus_env = getattr(self._config, "amadeus_env", "test")
+        base_url = PRODUCTION_BASE_URL if amadeus_env == "production" else TEST_BASE_URL
+        self.auth_url = f"{base_url}/v1/security/oauth2/token"
+        self.search_url = f"{base_url}/v2/shopping/flight-offers"
         self._session: Optional[aiohttp.ClientSession] = None
         self._access_token: Optional[str] = None
         self._token_expires_at: float = 0.0
@@ -48,13 +64,13 @@ class AmadeusProvider(FlightProvider):
 
         data = {
             "grant_type": "client_credentials",
-            "client_id": config.amadeus_api_key,
-            "client_secret": config.amadeus_api_secret,
+            "client_id": self._config.amadeus_api_key,
+            "client_secret": self._config.amadeus_api_secret,
         }
 
         try:
             async with session.post(
-                AUTH_URL,
+                self.auth_url,
                 data=data,
                 timeout=aiohttp.ClientTimeout(total=15),
             ) as resp:
@@ -95,7 +111,7 @@ class AmadeusProvider(FlightProvider):
         we search multiple dates across the range (sampling up to 5 dates
         to stay within free tier limits).
         """
-        if not config.amadeus_api_key or not config.amadeus_api_secret:
+        if not self._config.amadeus_api_key or not self._config.amadeus_api_secret:
             logger.debug("Amadeus not configured — skipping")
             return []
 
@@ -203,7 +219,7 @@ class AmadeusProvider(FlightProvider):
 
         try:
             async with session.get(
-                SEARCH_URL,
+                self.search_url,
                 params=params,
                 headers=headers,
                 timeout=aiohttp.ClientTimeout(total=30),
@@ -215,7 +231,7 @@ class AmadeusProvider(FlightProvider):
                     token = await self._ensure_token()
                     headers["Authorization"] = f"Bearer {token}"
                     async with session.get(
-                        SEARCH_URL, params=params, headers=headers,
+                        self.search_url, params=params, headers=headers,
                         timeout=aiohttp.ClientTimeout(total=30),
                     ) as retry_resp:
                         if retry_resp.status != 200:

@@ -1,13 +1,13 @@
 """Kiwi / Tequila flight search provider."""
 
 import logging
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Optional
 
 import aiohttp
 
 from core.config import config
-from providers.base import FlightProvider, FlightResult
+from providers.base import FlightProvider, FlightResult, ProviderMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +18,17 @@ class KiwiProvider(FlightProvider):
     """Search flights via the Kiwi Tequila API."""
 
     name = "kiwi"
+    metadata = ProviderMetadata(
+        display_name="Kiwi Tequila",
+        tier="affiliate",
+        is_official=True,
+        recommendation="optional",
+        credentials=("KIWI_API_KEY",),
+        setup_difficulty="medium: partner/Tequila account needed; availability may vary by Kiwi program access",
+        docs_url="https://tequila.kiwi.com/portal/docs/tequila_api",
+        supports_booking_links=True,
+        notes="Useful affiliate/deep-link provider, but less ideal as the only OSS default than Amadeus.",
+    )
 
     def __init__(self) -> None:
         self._session: Optional[aiohttp.ClientSession] = None
@@ -83,39 +94,42 @@ class KiwiProvider(FlightProvider):
             logger.exception("Kiwi API request failed")
             return []
 
+        return self._parse_results(data, origin, destination, currency)
+
+    def _parse_results(
+        self,
+        data: dict,
+        origin: str,
+        destination: str,
+        currency: str,
+    ) -> list[FlightResult]:
+        """Parse Kiwi Tequila response into normalized flight results."""
         results: list[FlightResult] = []
         for item in data.get("data", []):
             try:
-                airlines = {r.get("airline", "?") for r in item.get("route", [])}
-                outbound = datetime.strptime(item["dTime"][:10] if isinstance(item.get("dTime"), str)
-                                              else datetime.utcfromtimestamp(item["dTime"]).strftime("%Y-%m-%d"),
-                                              "%Y-%m-%d").date()
-                return_dt = None
-                if item.get("return"):
-                    # Kiwi provides route segments; last segment's arrival is the return
-                    pass  # return_date parsed below
+                route = item.get("route", [])
+                airlines = {r.get("airline", "?") for r in route}
+                outbound = datetime.strptime(
+                    item["dTime"][:10]
+                    if isinstance(item.get("dTime"), str)
+                    else datetime.fromtimestamp(item["dTime"], UTC).strftime("%Y-%m-%d"),
+                    "%Y-%m-%d",
+                ).date()
 
-                # Parse outbound/return from local_departure
                 local_dep = item.get("local_departure", "")
-                local_arr = item.get("local_arrival", "")
-
                 try:
                     outbound = datetime.fromisoformat(local_dep[:10]).date()
                 except Exception:
                     pass
 
-                # Duration
+                return_dt = self._parse_return_date(route)
+
                 duration = item.get("duration", {})
                 total_sec = (duration.get("departure", 0) or 0) + (duration.get("return", 0) or 0)
                 total_min = total_sec // 60 if total_sec else item.get("fly_duration", 0)
 
-                # Stopovers: number of route segments minus 1 for outbound
-                route = item.get("route", [])
-                # Count outbound segments (those before the return flag)
                 outbound_segments = sum(1 for r in route if r.get("return") == 0)
                 stops = max(outbound_segments - 1, 0)
-
-                # Build booking link
                 booking_link = item.get("deep_link", "")
 
                 results.append(FlightResult(
@@ -142,6 +156,21 @@ class KiwiProvider(FlightProvider):
 
         logger.info("Kiwi returned %d results for %s→%s", len(results), origin, destination)
         return results
+
+    @staticmethod
+    def _parse_return_date(route: list[dict]) -> Optional[date]:
+        """Return the first return-leg departure date from Kiwi route segments."""
+        for segment in route:
+            if segment.get("return") not in {1, True}:
+                continue
+            for key in ("local_departure", "utc_departure"):
+                raw = segment.get(key, "")
+                if raw and len(raw) >= 10:
+                    try:
+                        return datetime.fromisoformat(raw[:10]).date()
+                    except (TypeError, ValueError):
+                        continue
+        return None
 
     async def close(self) -> None:
         if self._session and not self._session.closed:

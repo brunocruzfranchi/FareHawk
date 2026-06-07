@@ -29,8 +29,8 @@ class Config:
     serpapi_key: str = field(
         default_factory=lambda: os.getenv("SERPAPI_KEY", "")
     )
-    rapidapi_key: str = field(
-        default_factory=lambda: os.getenv("RAPIDAPI_KEY", "")
+    amadeus_env: str = field(
+        default_factory=lambda: os.getenv("AMADEUS_ENV", "test")
     )
 
     # Database
@@ -55,7 +55,6 @@ class Config:
             "kiwi": bool(self.kiwi_api_key),
             "amadeus": bool(self.amadeus_api_key and self.amadeus_api_secret),
             "serpapi": bool(self.serpapi_key),
-            "skyscanner": bool(self.rapidapi_key),
         }
 
     def validate(self) -> None:
@@ -64,10 +63,12 @@ class Config:
             raise ValueError("TELEGRAM_BOT_TOKEN is required")
         if bool(self.amadeus_api_key) != bool(self.amadeus_api_secret):
             raise ValueError("AMADEUS_API_KEY and AMADEUS_API_SECRET must be set together")
+        if self.amadeus_env not in {"test", "production"}:
+            raise ValueError("AMADEUS_ENV must be either 'test' or 'production'")
         if not any(self.provider_status().values()):
             raise ValueError(
                 "At least one flight provider is required. "
-                "Set KIWI_API_KEY, AMADEUS_API_KEY/AMADEUS_API_SECRET, SERPAPI_KEY, or RAPIDAPI_KEY in .env"
+                "Set KIWI_API_KEY, AMADEUS_API_KEY/AMADEUS_API_SECRET, or SERPAPI_KEY in .env"
             )
 
 
